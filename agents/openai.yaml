@@ -1,0 +1,4 @@
+interface:
+  display_name: "Goal Entry"
+  short_description: "Route goal requests to the right protocol."
+  default_prompt: "Use $goal-entry to route this request before creating or binding a goal."
