@@ -2,6 +2,8 @@
 
 `goal-entry` 是一个面向 Codex goal-bound 工作流的轻量路由 skill。它本身不负责完成任务，而是先把用户请求分类，再决定后续应该走普通汇报、计划、目标创建、绑定已有 Goal、subagent 调度、backend artifact 初始化或 closeout。
 
+**当前维护版本：`v0.1.0`**
+
 这个仓库是从本机 Codex skill 中拆出来的公开版本，重点保留：
 
 - `SKILL.md`: public entry contract。
@@ -11,6 +13,14 @@
 - `scripts/validate_goal_runtime.py`: 只读事件 trace 一致性验证器，不是执行器。
 - `references/architecture.md`: `goal-entry` 与 `goal-*` 子协议的职责拆分。
 - `agents/openai.yaml`: agent metadata 示例。
+
+## 版本维护
+
+- `VERSION` 是仓库发布版本的单一来源，当前值为 `0.1.0`。
+- `CHANGELOG.md` 记录每个公开版本的用户可见能力、兼容性和修复。
+- Git tag 使用 `vMAJOR.MINOR.PATCH`，例如 `v0.1.0`。
+- package release version 与 resolver/contract schema version 分开演进：发布补丁不要求修改 JSON schema version；只有公开数据合同发生对应变化时才提升 schema version。
+- 后续发布先更新 `VERSION` 和 `CHANGELOG.md`，通过 `scripts/quick_validate.py`，合并到默认分支后再在该合并提交上创建 tag。
 
 ## 适用场景
 

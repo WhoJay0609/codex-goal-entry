@@ -17,6 +17,8 @@ sys.dont_write_bytecode = True
 
 
 REQUIRED_FILES = [
+    "VERSION",
+    "CHANGELOG.md",
     "SKILL.md",
     "README.md",
     "scripts/resolve_goal_entry.py",
@@ -66,6 +68,13 @@ def validate(root: Path) -> list[str]:
     for rel_path in REQUIRED_FILES:
         if not (root / rel_path).exists():
             errors.append(f"missing required file: {rel_path}")
+
+    version = read_text(root / "VERSION", errors).strip()
+    if not version or not all(part.isdigit() for part in version.split(".")) or len(version.split(".")) != 3:
+        errors.append(f"VERSION must use MAJOR.MINOR.PATCH: {version!r}")
+    changelog_text = read_text(root / "CHANGELOG.md", errors)
+    if version and f"## [{version}]" not in changelog_text:
+        errors.append(f"CHANGELOG.md missing current VERSION entry: {version}")
 
     entry_text = read_text(root / "SKILL.md", errors)
     for marker in ENTRY_MARKERS:
