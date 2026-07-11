@@ -2,6 +2,21 @@
 
 本项目从 `v0.1.0` 开始维护语义化版本。版本号遵循 `MAJOR.MINOR.PATCH`：不兼容的公开契约变化提升 MAJOR，向后兼容的新能力提升 MINOR，向后兼容的修复提升 PATCH。
 
+## [0.2.0] - 2026-07-11
+
+### Added
+
+- additive `entry_session` version 1，将 Intent Envelope、显式复合阶段编译、Durable Goal Cursor 与阶段级 Capability Attestation 纳入同一个 Two-Pass 合同。
+- 稳定请求指纹与幂等重放冲突检测；同 key 同 fingerprint 复用会话，不同 fingerprint 失败关闭。
+- canonical cursor 候选选择、revision 防陈旧检查，以及只由 `goal-context` verified evidence 授权的绑定边界。
+- provider attestation 的 issuer、scope、health、validity 和 capability coverage 验证，以及失效、检查点、兼容重协商的 trace conformance。
+
+### Compatibility
+
+- resolver 顶层 version 1 与 `decision_contract` version 2 保留为兼容投影。
+- legacy capability `full_stack` 仅表达声明覆盖；只有 `entry_session.authority_pass.phase_execution_allowed` 表达当前阶段具备可执行前提。
+- standalone 结果继续只证明合同一致性，不声称外部 Goal mutation 已发生。
+
 ## [0.1.0] - 2026-07-11
 
 首个正式维护版本。
@@ -21,3 +36,4 @@
 - standalone package 只声明和验证合同；外部 `goal-*` child owners 继续负责真实 Goal mutation 与调度。
 
 [0.1.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v0.1.0
+[0.2.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v0.2.0

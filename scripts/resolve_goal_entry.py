@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
 import json
 import re
 import sys
@@ -15,6 +16,8 @@ from typing import Any
 
 CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "runtime_profiles.json"
 RUNTIME_CONTRACT = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+ENTRY_CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "entry_session_contract.json"
+ENTRY_CONTRACT = json.loads(ENTRY_CONTRACT_PATH.read_text(encoding="utf-8"))
 RUNTIME_PROFILES = RUNTIME_CONTRACT["profiles"]
 KNOWN_CAPABILITIES = set(RUNTIME_CONTRACT["capabilities"])
 
@@ -191,6 +194,22 @@ RESEARCH_PROFILE_RULES = [
     ),
 ]
 EXPLICIT_PLANNING_PATTERN = re.compile(r"\b(plan|proposal|design|options|strategy|roadmap)\b|(计划|规划|只规划)", re.I)
+AMBIGUOUS_MUTATION_PATTERN = re.compile(
+    r"\b(review|analy[sz]e|plan)\s+or\s+(implement|execute|ship|build)\b"
+    r"|\b(implement|execute|ship|build)\s+or\s+(review|analy[sz]e|plan)\b"
+    r"|(分析|评审|规划).{0,12}(还是|或者).{0,12}(执行|实现|落地)"
+    r"|(执行|实现|落地).{0,12}(还是|或者).{0,12}(分析|评审|规划)",
+    re.I,
+)
+PHASE_SEPARATOR_PATTERN = re.compile(
+    r"\s*(?:,?\s*\bthen\b|,?\s*\bnext\b|,?\s*\bfinally\b|[，,；;]?\s*(?:然后|再|最后|之后))\s*",
+    re.I,
+)
+PHASE_PREFIX_PATTERN = re.compile(r"^\s*(?:先|first(?:ly)?\b)\s*", re.I)
+RESEARCH_PHASE_PATTERN = re.compile(
+    r"(auto[- ]?research|research|hypothesis|paper|experiment|evidence|调研|研究|科研|实验|论文|证据)",
+    re.I,
+)
 
 
 def utc_now() -> str:
@@ -218,6 +237,208 @@ def load_json_arg(value: Any) -> Any:
     return json.loads(value)
 
 
+def canonical_json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def stable_digest(value: Any) -> str:
+    return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
+
+def parse_timestamp(value: Any) -> datetime | None:
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def normalize_request_parts(request_text: str, value: Any) -> dict[str, Any]:
+    if value is None:
+        return {"instruction": request_text, "quoted": "", "attachments": [], "prior_assistant": ""}
+    if not isinstance(value, dict):
+        raise ValueError("request parts must be a JSON object")
+    attachments = value.get("attachments", [])
+    if isinstance(attachments, str):
+        attachments = [attachments]
+    if not isinstance(attachments, list) or not all(isinstance(item, str) for item in attachments):
+        raise ValueError("request parts attachments must be an array of strings")
+    return {
+        "instruction": str(value.get("instruction", request_text)),
+        "quoted": str(value.get("quoted", "")),
+        "attachments": attachments,
+        "prior_assistant": str(value.get("prior_assistant", "")),
+    }
+
+
+def compile_phase_graph(text: str) -> list[dict[str, Any]]:
+    clean = NO_EXECUTION_PATTERN.sub("", text)
+    clauses = [PHASE_PREFIX_PATTERN.sub("", item).strip(" ，,；;") for item in PHASE_SEPARATOR_PATTERN.split(clean)]
+    clauses = [item for item in clauses if item]
+    if not clauses:
+        clauses = [clean.strip() or text.strip() or "request"]
+    grouped: list[dict[str, Any]] = []
+    for clause in clauses:
+        profile = "scientific_autoresearch" if RESEARCH_PHASE_PATTERN.search(clause) else "complex_engineering"
+        if grouped and grouped[-1]["runtime_profile"] == profile:
+            grouped[-1]["outcome"] = f'{grouped[-1]["outcome"]}; {clause}'
+            continue
+        grouped.append({"runtime_profile": profile, "outcome": clause})
+    phases: list[dict[str, Any]] = []
+    for index, item in enumerate(grouped, start=1):
+        phase_id = f"phase-{index}"
+        profile = item["runtime_profile"]
+        phases.append({
+            "phase_id": phase_id,
+            "runtime_profile": profile,
+            "outcome": item["outcome"],
+            "artifacts": list(RUNTIME_PROFILES[profile]["evidence_expectations"]),
+            "dependencies": [] if index == 1 else [f"phase-{index - 1}"],
+            "entry_condition": "session_authority_ready" if index == 1 else "dependencies_accepted",
+            "exit_condition": "profile_evidence_satisfied",
+        })
+    return phases
+
+
+def build_semantic_pass(instruction: str, request_mode: str, clarification: Any) -> dict[str, Any]:
+    if clarification is not None and not isinstance(clarification, dict):
+        raise ValueError("clarification must be a JSON object")
+    effective = str((clarification or {}).get("instruction", instruction))
+    ambiguous = bool(AMBIGUOUS_MUTATION_PATTERN.search(effective))
+    attempt = int((clarification or {}).get("attempt", 0))
+    if ambiguous and attempt == 0:
+        status = "clarification_required"
+    elif ambiguous:
+        status = "unresolved_non_mutating"
+    else:
+        status = "resolved"
+    mutation_candidate = status == "resolved" and request_mode in {"execute_goal", "active_goal_bind"}
+    phase_graph = compile_phase_graph(effective)
+    preview_only = not mutation_candidate and len(phase_graph) > 1
+    return {
+        "status": status,
+        "instruction": effective,
+        "intent": request_mode,
+        "mutation_candidate": mutation_candidate,
+        "preview_only": preview_only,
+        "phase_graph": phase_graph,
+        "provenance": {
+            "authoritative_lanes": ["instruction"],
+            "context_only_lanes": ["quoted", "attachments", "prior_assistant"],
+        },
+        "clarification": (
+            {"attempt": 1, "question": "Should I only analyze/review this request, or execute the mutation?"}
+            if status == "clarification_required"
+            else None
+        ),
+        "interpretation_candidates": (
+            ["read_only_analysis", "mutation_execution"] if ambiguous else [request_mode]
+        ),
+    }
+
+
+def validate_cursor(cursor: Any, now: datetime) -> tuple[dict[str, Any] | None, list[str]]:
+    if not isinstance(cursor, dict):
+        return None, ["missing_verified_goal_cursor"]
+    reasons: list[str] = []
+    if cursor.get("issuer") not in ENTRY_CONTRACT["trusted_cursor_issuers"]:
+        reasons.append("untrusted_cursor_issuer")
+    if cursor.get("verification_status") != "verified" or not cursor.get("proof_ref"):
+        reasons.append("unverified_goal_cursor")
+    if not cursor.get("goal_id") or not isinstance(cursor.get("revision"), int) or cursor.get("revision") < 0:
+        reasons.append("invalid_goal_cursor_identity")
+    if not isinstance(cursor.get("state_source"), str) or not cursor.get("state_source"):
+        reasons.append("missing_cursor_state_source")
+    if not cursor.get("conversation_correlation") and not cursor.get("thread_id"):
+        reasons.append("missing_cursor_correlation")
+    if cursor.get("status") not in {"active", "paused", "complete"}:
+        reasons.append("invalid_goal_cursor_status")
+    issued = parse_timestamp(cursor.get("issued_at"))
+    if issued is None or issued > now:
+        reasons.append("invalid_cursor_issued_at")
+    expires = parse_timestamp(cursor.get("expires_at"))
+    if cursor.get("expires_at") and (expires is None or expires <= now):
+        reasons.append("expired_goal_cursor")
+    return (dict(cursor) if not reasons else None), reasons
+
+
+def select_cursor(explicit: Any, candidates: Any, correlation: str | None, now: datetime) -> tuple[Any, list[Any], list[str]]:
+    if explicit is not None:
+        valid, reasons = validate_cursor(explicit, now)
+        return valid, [], reasons
+    if candidates is None:
+        return None, [], ["missing_verified_goal_cursor"]
+    if not isinstance(candidates, list):
+        raise ValueError("active goals must be a JSON array")
+    valid_candidates = []
+    for candidate in candidates:
+        valid, _ = validate_cursor(candidate, now)
+        if valid:
+            valid_candidates.append(valid)
+    valid_candidates.sort(key=lambda item: str(item.get("issued_at", "")), reverse=True)
+    exact = [item for item in valid_candidates if correlation and item.get("conversation_correlation") == correlation]
+    if len(exact) == 1:
+        return exact[0], valid_candidates, []
+    if len(valid_candidates) == 1:
+        return valid_candidates[0], valid_candidates, []
+    if len(valid_candidates) > 1:
+        return None, valid_candidates, ["multiple_goal_candidates"]
+    return None, [], ["missing_verified_goal_cursor"]
+
+
+def validate_attestations(value: Any, required: list[str], session_id: str, fingerprint: str, now: datetime) -> dict[str, Any]:
+    if value is None:
+        attestations = []
+    elif isinstance(value, list):
+        attestations = value
+    else:
+        raise ValueError("provider attestations must be a JSON array")
+    accepted: list[str] = []
+    rejected: list[dict[str, Any]] = []
+    capabilities: set[str] = set()
+    for item in attestations:
+        reasons: list[str] = []
+        if not isinstance(item, dict):
+            rejected.append({"provider_id": None, "reasons": ["invalid_attestation_shape"]})
+            continue
+        if not isinstance(item.get("provider_id"), str) or not item.get("provider_id"):
+            reasons.append("invalid_provider_identity")
+        if item.get("issuer") not in ENTRY_CONTRACT["trusted_attestation_issuers"]:
+            reasons.append("untrusted_attestation_issuer")
+        if item.get("verification_status") != "verified" or not item.get("proof_ref"):
+            reasons.append("unverified_attestation")
+        if item.get("contract_version") != ENTRY_CONTRACT["contract_version"]:
+            reasons.append("incompatible_attestation_contract")
+        if item.get("health") != "healthy":
+            reasons.append("provider_unhealthy")
+        expires = parse_timestamp(item.get("expires_at"))
+        issued = parse_timestamp(item.get("issued_at"))
+        if issued is None or expires is None or expires <= now or issued > now:
+            reasons.append("attestation_outside_validity_window")
+        scope_matches = item.get("session_id") == session_id or item.get("request_fingerprint") == fingerprint
+        if not scope_matches:
+            reasons.append("attestation_scope_mismatch")
+        item_capabilities = item.get("capabilities")
+        if not isinstance(item_capabilities, list) or not all(isinstance(capability, str) for capability in item_capabilities):
+            reasons.append("invalid_attested_capabilities")
+        if reasons:
+            rejected.append({"provider_id": item.get("provider_id"), "reasons": reasons})
+        else:
+            accepted.append(str(item.get("provider_id")))
+            capabilities.update(item_capabilities)
+    missing = sorted(set(required) - capabilities)
+    return {
+        "status": "ready" if not missing and bool(required) else "not_required" if not required else "degraded",
+        "accepted_providers": accepted,
+        "rejected_providers": rejected,
+        "attested_capabilities": sorted(capabilities),
+        "missing_capabilities": missing,
+        "recovery_conditions": ["supply a healthy, unexpired, trusted, session-scoped attestation"] if missing else [],
+    }
+
+
 def truthy(value: str) -> bool:
     return value.lower() in {"1", "true", "yes", "y", "available"}
 
@@ -243,6 +464,9 @@ def resolve_request_mode(text: str, has_active_goal: bool) -> tuple[str, list[st
         if EXPLICIT_PLANNING_PATTERN.search(text):
             return "plan_only", no_execution_matches + ["explicit_planning_with_no_execution"]
         return "report_only", no_execution_matches
+    active_matches = collect_matches(text, ACTIVE_GOAL_RULES)
+    if has_active_goal and active_matches:
+        return "active_goal_bind", active_matches
     execution_matches = collect_matches(text, EXECUTION_RULES)
     if execution_matches:
         return "execute_goal", execution_matches
@@ -256,10 +480,6 @@ def resolve_request_mode(text: str, has_active_goal: bool) -> tuple[str, list[st
         mode_matches = collect_matches(text, rules)
         if mode_matches:
             return mode, mode_matches
-
-    active_matches = collect_matches(text, ACTIVE_GOAL_RULES)
-    if has_active_goal and active_matches:
-        return "active_goal_bind", active_matches
 
     if has_active_goal:
         matched.append("active_goal_present_default_bind")
@@ -502,6 +722,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--active-goal-json")
     parser.add_argument("--runtime-state-json")
     parser.add_argument("--capabilities-json")
+    parser.add_argument("--request-parts-json")
+    parser.add_argument("--clarification-json")
+    parser.add_argument("--idempotency-key")
+    parser.add_argument("--prior-entry-session-json")
+    parser.add_argument("--goal-cursor-json")
+    parser.add_argument("--active-goals-json")
+    parser.add_argument("--expected-goal-revision", type=int)
+    parser.add_argument("--conversation-correlation")
+    parser.add_argument("--provider-attestations-json")
+    parser.add_argument("--active-phase-id")
     parser.add_argument("--readiness-status", choices=sorted(READINESS_STATUSES), default="auto")
     parser.add_argument("--superpowers-available", choices=["true", "false", "unknown"], default="unknown")
     parser.add_argument("--direct-runtime-requested", action="store_true")
@@ -512,14 +742,23 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def resolve(args: argparse.Namespace) -> dict[str, Any]:
     request_text = read_text_arg(args.request, args.request_file)
     objective_text = read_text_arg(args.objective, args.objective_file)
+    request_parts = normalize_request_parts(
+        request_text,
+        load_json_arg(getattr(args, "request_parts_json", None)),
+    )
+    clarification = load_json_arg(getattr(args, "clarification_json", None))
+    authoritative_instruction = str(request_parts["instruction"])
+    semantic_instruction = str((clarification or {}).get("instruction", authoritative_instruction))
     active_goal_json = load_json_arg(args.active_goal_json)
-    has_active_goal = active_goal(active_goal_json)
+    goal_cursor_input = getattr(args, "goal_cursor_json", None)
+    active_goals_input = getattr(args, "active_goals_json", None)
+    has_active_goal = active_goal(active_goal_json) or bool(goal_cursor_input) or bool(active_goals_input)
     runtime_state = validate_runtime_state(load_json_arg(getattr(args, "runtime_state_json", None)))
     capabilities = normalize_capabilities(load_json_arg(getattr(args, "capabilities_json", None)))
 
-    request_mode, request_matches = resolve_request_mode(request_text, has_active_goal)
-    tier, dispatch_level, tier_matches = resolve_tier(request_text, request_mode)
-    route, route_matches = resolve_route(request_text, request_mode, tier)
+    request_mode, request_matches = resolve_request_mode(semantic_instruction, has_active_goal)
+    tier, dispatch_level, tier_matches = resolve_tier(semantic_instruction, request_mode)
+    route, route_matches = resolve_route(semantic_instruction, request_mode, tier)
     execution_mode, execution_matches, fallback = resolve_execution_mode(
         tier,
         request_mode,
@@ -534,7 +773,7 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
         has_active_goal,
         objective_length,
     )
-    task_profile, profile_matches = resolve_task_profile(request_text, request_mode)
+    task_profile, profile_matches = resolve_task_profile(semantic_instruction, request_mode)
     lifecycle_state, authorization_state, lifecycle_matches = resolve_lifecycle(
         request_mode,
         has_active_goal,
@@ -544,6 +783,113 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
         task_profile,
         capabilities,
     )
+
+    semantic_pass = build_semantic_pass(authoritative_instruction, request_mode, clarification)
+    fingerprint_payload = {
+        "contract_version": ENTRY_CONTRACT["contract_version"],
+        "request_parts": request_parts,
+        "clarification": clarification,
+        "conversation_mode": args.conversation_mode,
+        "conversation_correlation": getattr(args, "conversation_correlation", None),
+    }
+    request_fingerprint = stable_digest(fingerprint_payload)
+    idempotency_key = getattr(args, "idempotency_key", None) or f"auto:{request_fingerprint}"
+    session_id = f"entry-{stable_digest({'key': idempotency_key, 'fingerprint': request_fingerprint})[:20]}"
+    prior_session = load_json_arg(getattr(args, "prior_entry_session_json", None))
+    idempotency_status = "new"
+    idempotency_conflict = False
+    if prior_session is not None:
+        if not isinstance(prior_session, dict):
+            raise ValueError("prior entry session must be a JSON object")
+        prior_key = (prior_session.get("idempotency") or {}).get("key")
+        if prior_key == idempotency_key and prior_session.get("request_fingerprint") == request_fingerprint:
+            session_id = str(prior_session.get("session_id", session_id))
+            idempotency_status = (
+                "replayed_completed" if prior_session.get("status") == "complete" else "replayed_in_progress"
+            )
+        else:
+            idempotency_status = "conflict"
+            idempotency_conflict = True
+
+    now = datetime.now(timezone.utc)
+    if semantic_pass["mutation_candidate"]:
+        selected_cursor, goal_candidates, cursor_reasons = select_cursor(
+            load_json_arg(goal_cursor_input),
+            load_json_arg(active_goals_input),
+            getattr(args, "conversation_correlation", None),
+            now,
+        )
+    else:
+        selected_cursor, goal_candidates, cursor_reasons = None, [], []
+    if getattr(args, "expected_goal_revision", None) is not None and selected_cursor:
+        if selected_cursor["revision"] != args.expected_goal_revision:
+            cursor_reasons.append("stale_goal_revision")
+            selected_cursor = None
+
+    phase_graph = semantic_pass["phase_graph"]
+    explicit_active_phase_id = getattr(args, "active_phase_id", None)
+    active_phase_id = explicit_active_phase_id or (phase_graph[0]["phase_id"] if phase_graph else None)
+    active_phase = next((phase for phase in phase_graph if phase["phase_id"] == active_phase_id), None)
+    invalid_active_phase = bool(explicit_active_phase_id and active_phase is None)
+    required_attested = (
+        list(RUNTIME_PROFILES[active_phase["runtime_profile"]]["required_capabilities"])
+        if semantic_pass["mutation_candidate"] and active_phase
+        else []
+    )
+    attestation = validate_attestations(
+        load_json_arg(getattr(args, "provider_attestations_json", None))
+        if semantic_pass["mutation_candidate"] and not invalid_active_phase
+        else None,
+        required_attested,
+        session_id,
+        request_fingerprint,
+        now,
+    )
+
+    authority_reasons: list[str] = []
+    goal_mutation_allowed = False
+    phase_execution_allowed = False
+    if semantic_pass["status"] != "resolved":
+        authority_status = "blocked"
+        authority_reasons.append("semantic_intent_unresolved")
+    elif not semantic_pass["mutation_candidate"]:
+        authority_status = "not_required"
+    elif idempotency_conflict:
+        authority_status = "conflict"
+        authority_reasons.append("idempotency_fingerprint_conflict")
+    elif invalid_active_phase:
+        authority_status = "blocked"
+        authority_reasons.append("invalid_active_phase")
+    elif "multiple_goal_candidates" in cursor_reasons:
+        authority_status = "goal_selection_required"
+        authority_reasons.extend(cursor_reasons)
+    else:
+        cursor_required = has_active_goal or request_mode == "active_goal_bind"
+        if cursor_required and selected_cursor is None:
+            authority_status = "blocked"
+            authority_reasons.extend(cursor_reasons)
+        elif readiness_status != "passed":
+            authority_status = "blocked"
+            authority_reasons.append(f"readiness_{readiness_status}")
+        else:
+            goal_mutation_allowed = True
+            if attestation["status"] == "ready":
+                authority_status = "ready"
+                phase_execution_allowed = True
+            else:
+                authority_status = "planning_only"
+                authority_reasons.append("phase_provider_attestation_required")
+
+    authority_pass = {
+        "status": authority_status,
+        "goal_mutation_allowed": goal_mutation_allowed,
+        "phase_execution_allowed": phase_execution_allowed,
+        "active_phase_id": active_phase_id,
+        "cursor": selected_cursor,
+        "goal_candidates": goal_candidates,
+        "provider": attestation,
+        "reasons": list(dict.fromkeys(authority_reasons)),
+    }
     if lifecycle_state == "state_required":
         goal_action = "fallback_handoff"
         goal_action_matches = ["runtime_state_conflict"]
@@ -551,6 +897,14 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
         goal_action = "fallback_handoff"
         goal_action_matches = ["durable_goal_not_active"]
     elif task_profile is not None and provider_status in {"degraded", "incompatible"}:
+        authorization_state = "handoff_required"
+    if semantic_pass["status"] != "resolved" or idempotency_conflict:
+        goal_action = "none"
+        goal_action_matches = ["entry_session_mutation_blocked"]
+        authorization_state = "handoff_required"
+    elif semantic_pass["mutation_candidate"] and not authority_pass["goal_mutation_allowed"]:
+        goal_action = "fallback_handoff"
+        goal_action_matches = ["entry_session_authority_blocked"]
         authorization_state = "handoff_required"
 
     if request_mode == "advisory_debate":
@@ -604,6 +958,19 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
             "missing_capabilities": missing_capabilities,
             "unknown_capabilities": unknown_capabilities,
             "next_owner": resolve_next_owner(lifecycle_state),
+        },
+        "entry_session": {
+            "version": ENTRY_CONTRACT["contract_version"],
+            "status": "complete" if idempotency_status == "replayed_completed" else "in_progress",
+            "session_id": session_id,
+            "request_fingerprint": request_fingerprint,
+            "idempotency": {
+                "key": idempotency_key,
+                "key_source": "client" if getattr(args, "idempotency_key", None) else "derived_compatibility",
+                "status": idempotency_status,
+            },
+            "semantic_pass": semantic_pass,
+            "authority_pass": authority_pass,
         },
     }
     if objective_length is not None:

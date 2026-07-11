@@ -138,5 +138,38 @@
       {"type": "goal_closed", "goal_id": "g"}
     ],
     "expected_violation": "claim disposition"
+  },
+  {
+    "name": "provider_invalidated_then_mutates",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"},
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "provider_attestation_invalidated", "provider_id": "p", "reason": "expired"},
+      {"type": "branch_mutation", "branch": "b", "provider_id": "p"}
+    ],
+    "expected_violation": "invalidated provider"
+  },
+  {
+    "name": "provider_renegotiates_before_checkpoint",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"},
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "provider_attestation_invalidated", "provider_id": "p", "reason": "unhealthy"},
+      {"type": "provider_attestation_renegotiated", "provider_id": "p", "compatible": true}
+    ],
+    "expected_violation": "safe checkpoint"
+  },
+  {
+    "name": "provider_invalidated_then_anonymous_mutation",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"},
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "provider_attestation_invalidated", "provider_id": "p", "reason": "expired"},
+      {"type": "branch_mutation", "branch": "b"}
+    ],
+    "expected_violation": "invalidated provider"
   }
 ]

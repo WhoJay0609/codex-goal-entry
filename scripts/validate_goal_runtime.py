@@ -49,6 +49,8 @@ def validate_trace(trace: dict[str, Any]) -> dict[str, Any]:
     milestones: dict[str, dict[str, Any]] = {}
     agents: dict[str, dict[str, Any]] = {}
     drifted_branches: set[str] = set()
+    invalidated_providers: set[str] = set()
+    checkpointed_providers: set[str] = set()
     experiments: dict[str, dict[str, Any]] = {}
     retry_limit = profiles[profile]["max_corrective_retries"]
 
@@ -199,10 +201,54 @@ def validate_trace(trace: dict[str, Any]) -> dict[str, Any]:
             drifted_branches.add(str(raw_event.get("branch", "")))
             continue
 
+        if event_type == "provider_attestation_invalidated":
+            provider_id = str(raw_event.get("provider_id", ""))
+            if not provider_id or not raw_event.get("reason"):
+                violation(result, index, "provider invalidation requires provider_id and reason")
+            else:
+                invalidated_providers.add(provider_id)
+                checkpointed_providers.discard(provider_id)
+            continue
+
+        if event_type == "provider_safe_checkpoint":
+            provider_id = str(raw_event.get("provider_id", ""))
+            if provider_id not in invalidated_providers:
+                violation(result, index, "safe checkpoint requires an invalidated provider")
+            elif not raw_event.get("checkpoint_ref"):
+                violation(result, index, "safe checkpoint requires checkpoint_ref")
+            else:
+                checkpointed_providers.add(provider_id)
+            continue
+
+        if event_type == "provider_attestation_renegotiated":
+            provider_id = str(raw_event.get("provider_id", ""))
+            if provider_id not in invalidated_providers:
+                violation(result, index, "provider renegotiation requires an invalidated provider")
+            elif provider_id not in checkpointed_providers:
+                violation(result, index, "provider renegotiation requires a safe checkpoint")
+            elif raw_event.get("compatible") is True:
+                invalidated_providers.remove(provider_id)
+                checkpointed_providers.discard(provider_id)
+            continue
+
+        if event_type == "provider_phase_resumed":
+            provider_id = str(raw_event.get("provider_id", ""))
+            if provider_id in invalidated_providers:
+                violation(result, index, "provider phase cannot resume while attestation is invalidated")
+            continue
+
+        if event_type == "provider_phase_paused":
+            provider_id = str(raw_event.get("provider_id", ""))
+            if provider_id and provider_id not in invalidated_providers:
+                violation(result, index, "provider pause requires an invalidated provider")
+            continue
+
         if event_type == "branch_mutation":
             branch = str(raw_event.get("branch", ""))
             if branch in drifted_branches:
                 violation(result, index, f"mutation attempted on paused drifted branch {branch}")
+            if invalidated_providers:
+                violation(result, index, f"mutation attempted with invalidated provider {sorted(invalidated_providers)}")
             continue
 
         if event_type == "drift_corrected":
@@ -254,6 +300,8 @@ def validate_trace(trace: dict[str, Any]) -> dict[str, Any]:
                 violation(result, index, f"goal close requires zero unresolved subagents: {unresolved}")
             if drifted_branches:
                 violation(result, index, f"goal close requires corrected drift: {sorted(drifted_branches)}")
+            if invalidated_providers:
+                violation(result, index, f"goal close requires compatible provider recovery: {sorted(invalidated_providers)}")
             if profile == "scientific_autoresearch" and (not experiments or not result["claims"]):
                 violation(result, index, "scientific closeout requires a traceable claim disposition")
             if (
@@ -263,6 +311,7 @@ def validate_trace(trace: dict[str, Any]) -> dict[str, Any]:
                 and not unaccepted
                 and not unresolved
                 and not drifted_branches
+                and not invalidated_providers
                 and (profile != "scientific_autoresearch" or (experiments and result["claims"]))
             ):
                 result["terminal_state"] = "closed"

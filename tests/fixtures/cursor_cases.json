@@ -1,0 +1,17 @@
+[
+  {
+    "name": "verified",
+    "cursor": {
+      "issuer": "goal-context",
+      "verification_status": "verified",
+      "proof_ref": "proof:g-1:r3",
+      "goal_id": "g-1",
+      "revision": 3,
+      "state_source": "canonical-goal-store",
+      "status": "active",
+      "conversation_correlation": "thread-1",
+      "issued_at": "2026-07-11T00:00:00Z",
+      "expires_at": "2099-01-01T00:00:00Z"
+    }
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "contract_version": 1,
+  "passes": ["semantic_pass", "authority_pass"],
+  "semantic_states": ["resolved", "clarification_required", "unresolved_non_mutating"],
+  "authority_states": [
+    "not_required",
+    "ready",
+    "planning_only",
+    "blocked",
+    "conflict",
+    "goal_selection_required"
+  ],
+  "idempotency_outcomes": ["new", "replayed_completed", "replayed_in_progress", "conflict"],
+  "session_states": ["in_progress", "complete"],
+  "provenance_lanes": {
+    "authoritative": ["instruction"],
+    "context_only": ["quoted", "attachments", "prior_assistant"]
+  },
+  "trusted_cursor_issuers": ["goal-context"],
+  "trusted_attestation_issuers": ["goal-preflight"],
+  "cursor_required_fields": ["issuer", "verification_status", "proof_ref", "goal_id", "revision", "state_source", "status", "issued_at", "conversation_correlation"],
+  "attestation_required_fields": ["provider_id", "issuer", "verification_status", "proof_ref", "contract_version", "health", "issued_at", "expires_at", "capabilities"],
+  "legacy_projections": {
+    "top_level_version": 1,
+    "decision_contract_version": 2
+  },
+  "invariants": {
+    "mutation_requires_resolved_semantics": true,
+    "read_only_skips_authority": true,
+    "one_goal_per_session": true,
+    "caller_state_is_advisory": true,
+    "provider_declaration_is_not_attestation": true,
+    "replay_does_not_extend_authority": true
+  }
+}

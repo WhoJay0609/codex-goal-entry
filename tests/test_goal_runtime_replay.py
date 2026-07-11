@@ -70,6 +70,41 @@ class GoalRuntimeReplayTests(unittest.TestCase):
         self.assertEqual([], result["violations"])
         self.assertEqual("closed", result["terminal_state"])
 
+    def test_provider_invalidation_can_checkpoint_and_resume_compatibly(self) -> None:
+        trace = {
+            "profile": "complex_engineering",
+            "events": [
+                {"type": "goal_created", "goal_id": "g"},
+                {"type": "roadmap_approved", "goal_id": "g"},
+                {"type": "provider_attestation_invalidated", "provider_id": "p", "reason": "expired"},
+                {"type": "provider_safe_checkpoint", "provider_id": "p", "checkpoint_ref": "cp-1"},
+                {"type": "provider_attestation_renegotiated", "provider_id": "p", "compatible": True},
+                {"type": "provider_phase_resumed", "provider_id": "p"},
+                {"type": "milestone_started", "milestone_id": "m", "dependencies": []},
+                {"type": "milestone_evidence", "milestone_id": "m", "implementer": "i", "artifacts": ["x"]},
+                {"type": "milestone_verdict", "milestone_id": "m", "verifier": "v", "verdict": "passed"},
+                {"type": "goal_closed", "goal_id": "g"},
+            ],
+        }
+        result = self.validator.validate_trace(trace)
+        self.assertEqual([], result["violations"])
+        self.assertEqual("closed", result["terminal_state"])
+
+    def test_incompatible_provider_renegotiation_preserves_pause(self) -> None:
+        trace = {
+            "profile": "complex_engineering",
+            "events": [
+                {"type": "goal_created", "goal_id": "g"},
+                {"type": "roadmap_approved", "goal_id": "g"},
+                {"type": "provider_attestation_invalidated", "provider_id": "p", "reason": "version"},
+                {"type": "provider_safe_checkpoint", "provider_id": "p", "checkpoint_ref": "cp-1"},
+                {"type": "provider_attestation_renegotiated", "provider_id": "p", "compatible": False},
+                {"type": "branch_mutation", "branch": "b", "provider_id": "p"},
+            ],
+        }
+        result = self.validator.validate_trace(trace)
+        self.assertTrue(any("invalidated provider" in item for item in result["violations"]))
+
 
 if __name__ == "__main__":
     unittest.main()

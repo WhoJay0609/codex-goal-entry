@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ideation: goal-entry for complex engineering and autoresearch</title>
+  <title>Ideation: goal-entry as a universal user task entry</title>
   <style>
     :root {
       color-scheme: light;
@@ -109,29 +109,31 @@
 <main>
   <header>
     <p class="eyebrow">Ideation · repository grounded</p>
-    <h1>让 <code>goal-entry</code> 真正承接复杂工程与科研 autoresearch</h1>
-    <p class="lede">核心判断：问题不在于缺少一个更重的入口，而在于入口只输出通用 mode/tier，无法表达任务画像、生命周期状态与证据协议。最强方向是让它成为薄而有类型的控制面，再复用现有 <code>goal-*</code> 与 harness backend。</p>
+    <h1>让 <code>goal-entry</code> 成为可信的通用任务入口</h1>
+    <p class="lede">v0.1.0 已补齐 Runtime Profiles、typed decision、里程碑门禁与 trace conformance。新的核心判断是：入口仍缺少歧义处理、复合任务编译、durable identity、provider 交接闭环和用户纠偏，因此“能分类”还不等于“能可靠接住任务”。</p>
     <div class="meta" aria-label="Document metadata">
-      <span class="chip">Date <time datetime="2026-07-10">2026-07-10</time></span>
+      <span class="chip">Date <time datetime="2026-07-11">2026-07-11</time></span>
       <span class="chip">Topic goal-entry-complex-engineering-autoresearch</span>
-      <span class="chip">Focus 复杂工程项目 + 科研 autoresearch</span>
+      <span class="chip">Focus v0.1.0 后的通用用户任务入口</span>
       <span class="chip">Mode repo-grounded</span>
     </div>
   </header>
 
   <div class="stats" aria-label="Ideation counts">
-    <div class="stat"><strong>35</strong><span>merged raw candidates</span></div>
+    <div class="stat"><strong>42</strong><span>post-v0.1 raw candidates</span></div>
     <div class="stat"><strong>7</strong><span>ranked survivors</span></div>
     <div class="stat"><strong>5</strong><span>topic axes covered</span></div>
-    <div class="stat"><strong>28</strong><span>ideas cut or absorbed</span></div>
+    <div class="stat"><strong>35</strong><span>ideas cut or absorbed</span></div>
   </div>
 
   <nav aria-label="Document navigation">
     <ul>
       <li><a href="#grounding-context">Grounding Context</a></li>
       <li><a href="#topic-axes">Topic Axes</a></li>
-      <li><a href="#ranked-ideas">Ranked Ideas</a></li>
+      <li><a href="#ranked-ideas">Post-v0.1 Ranked Ideas</a></li>
       <li><a href="#rejection-summary">Rejection Summary</a></li>
+      <li><a href="#original-ranked-ideas">2026-07-10 Baseline</a></li>
+      <li><a href="#original-rejection-summary">Original Rejections</a></li>
     </ul>
   </nav>
 
@@ -146,24 +148,148 @@
       <p class="eyebrow">Boundary that must survive</p>
       <p><strong>不要把科研或工程执行细节重新塞回 <code>goal-entry</code>。</strong> 它应只负责产生更有语义、可验证、可协商的路由结果；阶段图、实验合同、团队和证据门继续由 child owners 承接。</p>
     </div>
-    <p>外部研究工具连续两次在网络层失败，因此本轮排序不使用任何外部主张；结论主要来自当前仓库、installed skill stack、backend scripts、autoresearch contract 和历史经验。独立 verifier dispatch 也受当前 harness 映射限制，本轮由主线程逐条核验所有 load-bearing basis。</p>
+    <p><strong>v0.1.0 更新。</strong> 2026-07-10 排名前三的 Contract-Conformance Evaluation Harness、Typed Resolver 与 Goal Runtime Profiles 已落地；roadmap approval、milestone acceptance、independent verifier、bounded retry、drift correction、subagent cleanup 与 Claim Firewall 也已进入 declarative contract 和 trace replay。它们现在是基线，不再作为本轮的新建议。</p>
+    <p><strong>仍未闭合的 seam。</strong> resolver 仍以有序 regex 和硬默认值选择单一 profile；durable state 与 capability manifest 都由 caller 提供；<code>next_owner</code> 只有名字，没有版本协商、接收确认或超时；入口也没有 preview、correction、pause/cancel/amend、risk budget 或重复调用保护。</p>
+    <p><strong>External Context.</strong> 外部主资料显示成熟协议普遍把这些 seam 当成一等合同：<a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle">MCP lifecycle</a> 在 operation 前协商版本与 capabilities；<a href="https://langchain-ai.github.io/langgraph/concepts/breakpoints/">LangGraph interrupts</a> 用 durable checkpoint 与 thread cursor 恢复；<a href="https://openai.github.io/openai-agents-python/handoffs/">OpenAI Agents SDK handoffs</a> 支持 typed payload、input filter 和 callback；<a href="https://openai.github.io/openai-agents-python/tracing/">tracing</a> 记录 handoff/guardrail 与 trace identity；<a href="https://datatracker.ietf.org/doc/html/draft-ietf-httpapi-idempotency-key-header">IETF Idempotency-Key draft</a> 用稳定 key 与 fingerprint 识别 retry。</p>
+    <p>当前仓库要求所有 agent-style dispatch 在主线程顺序完成，因此本次 basis verification 由主线程逐项复核，而不是独立 verifier agent；这项降级记录在新 rejection summary 中，不改变证据门槛。</p>
   </section>
 
   <section id="topic-axes">
     <p class="eyebrow">Surface map</p>
     <h2>Topic Axes</h2>
     <ul class="axes">
-      <li><strong>1 · Intent and policy routing</strong>区分执行、计划、continuation、复杂工程与科学研究意图。</li>
-      <li><strong>2 · Orchestration graph and recovery</strong>表达阶段、依赖、checkpoint、失败、恢复与下一 gate。</li>
-      <li><strong>3 · Scientific lifecycle and evidence</strong>连接问题、假设、协议、实验、指标、结果、claim 与论文。</li>
-      <li><strong>4 · Team and skill routing</strong>按阶段选择 engineering、research、bridge、evidence 与 safety 能力。</li>
-      <li><strong>5 · Verification and portability</strong>用场景评测与 capability negotiation 守住 standalone/full-stack 一致性。</li>
+      <li><strong>1 · Intent interpretation and ambiguity</strong>区分真正指令、引用材料、negation、候选意图与需要澄清的歧义。</li>
+      <li><strong>2 · Composite task compilation</strong>表达一个任务内部从研究到工程、实验与写作的 profile 转换。</li>
+      <li><strong>3 · Durable Goal identity and resume</strong>处理 Goal namespace、revision、freshness、并发、重复调用与恢复 cursor。</li>
+      <li><strong>4 · Provider negotiation and handoff closure</strong>证明 provider 可用、版本兼容，并确认下一 owner 真正接收责任。</li>
+      <li><strong>5 · Human authorization, risk, and correction</strong>让用户预览、纠正、暂停、取消、修订并约束副作用与预算。</li>
     </ul>
   </section>
 
   <section id="ranked-ideas">
-    <p class="eyebrow">Seven directions worth developing</p>
+    <p class="eyebrow">Seven post-v0.1 directions worth developing</p>
     <h2>Ranked Ideas</h2>
+    <ul class="jump-list" aria-label="Post-v0.1 ranked idea jump list">
+      <li><a href="#b1">B1. Intent Envelope</a></li>
+      <li><a href="#b2">B2. Composite Compiler</a></li>
+      <li><a href="#b3">B3. Durable Cursor</a></li>
+      <li><a href="#b4">B4. Capability Session</a></li>
+      <li><a href="#b5">B5. Handoff Protocol</a></li>
+      <li><a href="#b6">B6. Human Control</a></li>
+      <li><a href="#b7">B7. Calibration Lab</a></li>
+    </ul>
+
+    <article class="idea" id="b1">
+      <div class="idea-head"><div class="rank">B1</div><div><h3>B1. Goal Intent Envelope with abstention</h3><p>把“我理解成什么”变成可检查、可纠正、可弃权的入口合同。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>把 instruction、引用/附件、prior assistant text 与不可信内容分成 provenance lanes；输出候选 intent/profile、negation scope、ambiguity margin、abstention reason 和稳定 correction handle。决策不够明确时先澄清，不允许直接 mutation。</dd>
+        <dt>Axis</dt><dd>Intent interpretation and ambiguity</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>scripts/resolve_goal_entry.py:239-267,360-366,566-607</code> 目前只有有序 regex、<code>report_only</code>/<code>complex_engineering</code> 硬默认与扁平 <code>matched_rules</code>，没有 provenance、候选解释、confidence、abstention 或 correction。</dd>
+        <dt>Rationale</dt><dd>通用入口最危险的不是“不执行”，而是把歧义请求自信地路由为错误 Goal；后端控制越强，这类误判代价越大。</dd>
+        <dt>Downsides</dt><dd>需要新的 input envelope 和 clarification UX；模型可协助提取，但不能成为不可解释的唯一 policy truth。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">96%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+      <figure class="visual">
+        <svg viewBox="0 0 860 245" role="img" aria-label="Conceptual universal-entry flow from provenance-aware intent through durable and provider checks to an acknowledged handoff">
+          <defs><marker id="arrow4" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#557067"/></marker></defs>
+          <rect class="svg-box" x="20" y="76" rx="14" width="135" height="88"/><text class="svg-text" x="87" y="103">Request parts</text><text class="svg-small" x="87" y="128">instruction · quote</text><text class="svg-small" x="87" y="148">attachment · history</text>
+          <path d="M155 120 H205" stroke="#557067" stroke-width="2" marker-end="url(#arrow4)"/>
+          <rect class="svg-accent" x="205" y="65" rx="14" width="150" height="110"/><text class="svg-text" x="280" y="94">Intent envelope</text><text class="svg-small" x="280" y="120">candidates · scope</text><text class="svg-small" x="280" y="141">abstain · correct</text><text class="svg-small" x="280" y="160">profile phases</text>
+          <path d="M355 120 H405" stroke="#557067" stroke-width="2" marker-end="url(#arrow4)"/>
+          <rect class="svg-blue" x="405" y="65" rx="14" width="135" height="110"/><text class="svg-text" x="472" y="94">Durable cursor</text><text class="svg-small" x="472" y="120">goal · revision</text><text class="svg-small" x="472" y="141">idempotency</text><text class="svg-small" x="472" y="160">state source</text>
+          <path d="M540 120 H590" stroke="#557067" stroke-width="2" marker-end="url(#arrow4)"/>
+          <rect class="svg-amber" x="590" y="65" rx="14" width="130" height="110"/><text class="svg-text" x="655" y="94">Provider session</text><text class="svg-small" x="655" y="120">version · health</text><text class="svg-small" x="655" y="141">capability lease</text><text class="svg-small" x="655" y="160">compatibility</text>
+          <path d="M720 120 H760" stroke="#557067" stroke-width="2" marker-end="url(#arrow4)"/>
+          <rect class="svg-box" x="760" y="78" rx="14" width="82" height="84"/><text class="svg-text" x="801" y="106">Receipt</text><text class="svg-small" x="801" y="131">accepted</text><text class="svg-small" x="801" y="148">or paused</text>
+        </svg>
+        <figcaption>Illustrative direction: a universal entry succeeds only after interpretation, durable binding, provider negotiation, and responsibility transfer all have explicit outcomes.</figcaption>
+      </figure>
+    </article>
+
+    <article class="idea" id="b2">
+      <div class="idea-head"><div class="rank">B2</div><div><h3>B2. Composite Goal Compiler</h3><p>一个 Goal 可以跨 profile，但不能被压扁成一个 lifetime label。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>把多阶段自然语言请求 lowering 为可验证的 Goal Intent IR：阶段、依赖、phase-level Runtime Profile、预期 artifacts 与 owner class。入口只编译 declarative skeleton，<code>goal-plan</code> 仍拥有路线图与 milestone 细化。</dd>
+        <dt>Axis</dt><dd>Composite task compilation</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>resolve_goal_entry.py:360-366</code> 每次只返回一个 profile；<code>runtime_profiles.json:72-135</code> 的工程与科研 progression、capability 和证据要求明显不同。</dd>
+        <dt>Rationale</dt><dd>“先调研，再实现，再跑实验，最后写论文”不是 research 与 engineering 二选一，而是一条需要保留语义转换的 Goal。</dd>
+        <dt>Downsides</dt><dd>IR 必须保持轻量且版本化，不能演变成 <code>goal-plan</code> 的第二 scheduler。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">93%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge large">High</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="b3">
+      <div class="idea-head"><div class="rank">B3</div><div><h3>B3. Durable Goal Cursor with CAS and idempotency</h3><p>让“继续”和“重试”绑定同一个可验证 occurrence，而不是聊天中的 active boolean。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>入口携带 Goal namespace、state revision、expected revision、state-source digest、entry idempotency key 与 multiple-active-Goal candidates；同一 request retry 返回既有结果，同一 Goal 的 stale revision 以 conflict fail closed。</dd>
+        <dt>Axis</dt><dd>Durable Goal identity and resume</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>resolve_goal_entry.py:225-232,369-451,495-509</code> 只有 active 判断、shape validation 与 Goal-ID conflict，没有 freshness、same-ID revision conflict、correlation 或 duplicate protection。<strong>external:</strong> IETF Idempotency-Key draft 定义 retry recognition 与 request fingerprint。</dd>
+        <dt>Rationale</dt><dd>它同时解决重复创建 Goal、旧 snapshot 误授权、并发会话覆盖和多 Goal 选择，是长期执行最关键的 identity primitive。</dd>
+        <dt>Downsides</dt><dd>需要外部 canonical state owner 提供 revision/CAS；standalone router 只能验证 cursor，不能自己成为状态库。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">97%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge large">High</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="b4">
+      <div class="idea-head"><div class="rank">B4</div><div><h3>B4. Capability Attestation Session</h3><p>从“caller 说它有”升级到“双方协商并证明此刻可用”。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>定义 initialize/initialized session：协商 contract version、provider identity/version、capability versions、health、expiry 与 required/optional features；生成短期 attestation lease，过期或 health change 后重新协商。</dd>
+        <dt>Axis</dt><dd>Provider negotiation and handoff closure</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>resolve_goal_entry.py:454-480</code> 只对 caller-supplied capability strings 做集合比较，文档又明确声明这不是执行证据。<strong>external:</strong> MCP lifecycle 在 operation 前完成 protocol 与 capability negotiation。</dd>
+        <dt>Rationale</dt><dd>它消除 false <code>full_stack</code>，并给 standalone/degraded/full-stack 一个真正可协商的边界。</dd>
+        <dt>Downsides</dt><dd>必须处理 provider 暂时离线、版本回退和 lease expiry，且不能让 discovery failure 阻断纯分类用途。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">95%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="b5">
+      <div class="idea-head"><div class="rank">B5</div><div><h3>B5. Acknowledged Handoff Protocol</h3><p><code>next_owner</code> 不是结果；责任被接收才是结果。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>定义 typed transfer packet、correlation ID 与 <code>accepted / rejected / timed_out</code> receipt；receiver 拒绝时返回缺失条件，超时时触发 cancellation/circuit breaker 并把 Goal 安全置为 paused/handoff-required。</dd>
+        <dt>Axis</dt><dd>Provider negotiation and handoff closure</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>resolve_goal_entry.py:483-492</code> 只按 lifecycle 返回 owner 名称。<strong>external:</strong> OpenAI Agents SDK handoff 支持 typed input、filter、callback 与 handoff trace。</dd>
+        <dt>Rationale</dt><dd>它直接修复“入口判断正确但任务掉在 owner 之间”的可靠性空洞。</dd>
+        <dt>Downsides</dt><dd>真正发送与等待 receipt 的 runner 必须属于外部 orchestrator；public router 只拥有 packet/receipt schema 和验证。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">94%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="b6">
+      <div class="idea-head"><div class="rank">B6</div><div><h3>B6. Human Control and Risk Envelope</h3><p>让用户能看见、纠正和收回授权，而不是只在开头说一次“确认”。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>在 mutation 前给出紧凑 preview：解释出的 intent、Goal binding、phase route、side effects、network/external actions、compute/time/cost budget 和 approval posture；提供 correct、pause、cancel、amend，并把 amendment 绑定到 expected Goal revision。</dd>
+        <dt>Axis</dt><dd>Human authorization, risk, and correction</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>runtime_profiles.json:13-20</code> 没有 risk/budget/cancel/amend；<code>resolve_goal_entry.py:260-266</code> 对 active Goal 默认 bind。</dd>
+        <dt>Rationale</dt><dd>通用入口必须支持长期任务中的授权变化；否则新消息很容易被误当成继续执行或静默扩展 roadmap。</dd>
+        <dt>Downsides</dt><dd>低风险任务需要 compact fast path，避免每轮都产生确认税；高风险边界必须由 child preflight 执行。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">92%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="b7">
+      <div class="idea-head"><div class="rank">B7</div><div><h3>B7. Adversarial Calibration and Replay Lab</h3><p>从“几个 golden case 通过”升级到可学习、可复现的入口质量系统。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>扩展 multilingual mixed-intent corpus、negation scope、quoted instructions、composite tasks、multiple Goals、stale revisions、duplicate calls 与 property/mutation tests；记录 privacy-safe correction telemetry，支持 shadow policy 和 deterministic replay bundle。</dd>
+        <dt>Axis</dt><dd>Intent interpretation and ambiguity</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>tests/fixtures/routing_cases.json:1-26</code> 只有五个固定 journey，现有 tests 没有 correction、cancel、budget、concurrency 或 duplicate-call case。<strong>external:</strong> OpenAI Agents SDK tracing 提供 workflow、handoff、guardrail 和 trace identity。</dd>
+        <dt>Rationale</dt><dd>这是让 B1-B6 能持续演进而不回到 regex whack-a-mole 的复利基础设施。</dd>
+        <dt>Downsides</dt><dd>真实 correction 是 noisy label；trace 必须默认保护敏感输入，并把 offline benchmark 与 live telemetry 分开。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">98%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+  </section>
+
+  <section id="original-ranked-ideas">
+    <p class="eyebrow">Preserved 2026-07-10 baseline</p>
+    <h2>Original Ranked Ideas (2026-07-10)</h2>
+    <div class="callout"><p class="eyebrow">Current status</p><p>原七个方向完整保留在下方。其中 A1 Runtime Profiles、A2 Typed Resolver 与 A3 Evaluation Harness 已进入 v0.1.0；A4-A7 的主要 policy 也已被 Runtime Profile contract 与 trace validator 部分承接。它们是本轮评估的已知基础，不与 B1-B7 竞争排名。</p></div>
     <ul class="jump-list" aria-label="Ranked idea jump list">
       <li><a href="#a1">A1. Runtime Profiles</a></li>
       <li><a href="#a2">A2. Typed Resolver</a></li>
@@ -312,8 +438,56 @@
   </section>
 
   <section id="rejection-summary">
-    <p class="eyebrow">Explicit cuts</p>
+    <p class="eyebrow">Post-v0.1 explicit cuts</p>
     <h2>Rejection Summary</h2>
+    <p>由于当前仓库要求 agent dispatch 在主线程顺序执行，本轮没有独立 fresh-context verifier；主线程逐条复核了 direct line basis 与 external primary sources。所有五个 topic axes 都至少有一个 survivor。</p>
+    <div class="rejection-wrap">
+      <table class="rejections">
+        <thead><tr><th>#</th><th>Idea</th><th>Reason Rejected</th></tr></thead>
+        <tbody>
+          <tr><td>2</td><td>Provenance-separated Request Parts</td><td>被 B1 吸收；只有 provenance、没有 ambiguity 和 correction 仍不闭环。</td></tr>
+          <tr><td>3</td><td>Multiple Active Goal Selector</td><td>被 B3 吸收为 cursor 的必要行为。</td></tr>
+          <tr><td>4</td><td>Correction Token</td><td>被 B1 的 correction handle 与 B6 的人类控制共同吸收。</td></tr>
+          <tr><td>5</td><td>Handoff Receipt</td><td>被更完整的 B5 typed packet、ack、timeout 与 pause 语义吸收。</td></tr>
+          <tr><td>6</td><td>State Freshness Guard</td><td>被 B3 的 revision、CAS 和 state-source digest 吸收。</td></tr>
+          <tr><td>7</td><td>Abstain Before Mutate</td><td>是 B1 的关键 policy，不足以单独成为产品方向。</td></tr>
+          <tr><td>8</td><td>Composite Goal Compiler (simple)</td><td>被 B2 的 validated Intent IR 与 phase profile lowering 强化后吸收。</td></tr>
+          <tr><td>9</td><td>Provider Initialize Handshake</td><td>被 B4 的 version、health、lease 与 initialized session 吸收。</td></tr>
+          <tr><td>10</td><td>Idempotent Entry Calls</td><td>被 B3 吸收；单独的 key 无法解决 stale state 与 Goal identity。</td></tr>
+          <tr><td>11</td><td>Pause / Cancel / Amend Intents</td><td>被 B6 的 revision-bound human control contract 吸收。</td></tr>
+          <tr><td>12</td><td>Risk and Budget Envelope</td><td>被 B6 吸收；它需要和 preview/correction/authorization 一起出现。</td></tr>
+          <tr><td>13</td><td>Entry as Protocol, Not Classifier</td><td>方向正确但过于宽泛；拆成 B1 interpretation、B4 negotiation 与 B5 transfer。</td></tr>
+          <tr><td>14</td><td>Profiles as Phase Annotations</td><td>被 B2 吸收为 composite IR 的中心字段。</td></tr>
+          <tr><td>15</td><td>Evidence-bearing Capability Lease</td><td>被 B4 吸收；lease 需要先有 provider/version negotiation。</td></tr>
+          <tr><td>16</td><td>Goal Update API</td><td>被 B6 吸收；另建 state API 会与外部 Goal owner 竞争职责。</td></tr>
+          <tr><td>17</td><td>Goal Registry, Not Active Boolean</td><td>被 B3 的 namespace、selection 与 revision cursor 吸收。</td></tr>
+          <tr><td>18</td><td>Compatibility Projection Auditor</td><td>有价值但低于独立立项目标；作为 B7 的 contract mutation case。</td></tr>
+          <tr><td>19</td><td>Adversarial Multilingual Evaluation</td><td>被 B7 吸收并扩展到 replay、property tests 与 telemetry。</td></tr>
+          <tr><td>20</td><td>Correction Telemetry and Shadow Routing</td><td>被 B7 吸收；脱离 offline corpus 和 replay 会产生不可解释数据。</td></tr>
+          <tr><td>21</td><td>Contract Mutation and Property Tests</td><td>被 B7 吸收。</td></tr>
+          <tr><td>22</td><td>Provider Health Cache with Expiry</td><td>被 B4 吸收为 negotiated attestation lease 的运行策略。</td></tr>
+          <tr><td>23</td><td>Decision Replay Bundle</td><td>被 B7 吸收；其中 state/input hashes 同时成为 B3 cursor evidence。</td></tr>
+          <tr><td>24</td><td>Policy Registry with Rule Provenance</td><td>是 B1/B7 的实现变体，不是独立用户价值。</td></tr>
+          <tr><td>25</td><td>MCP-style Entry Initialization</td><td>与 B4 重复。</td></tr>
+          <tr><td>26</td><td>Database Compare-and-Swap Cursor</td><td>被 B3 吸收。</td></tr>
+          <tr><td>27</td><td>Compiler Intermediate Representation</td><td>被 B2 吸收。</td></tr>
+          <tr><td>28</td><td>Chain-of-Custody Input Envelope</td><td>被 B1 的 provenance lanes 吸收。</td></tr>
+          <tr><td>29</td><td>Air-Traffic Clearance Envelope</td><td>有用类比，但产品语义已被 B6 覆盖。</td></tr>
+          <tr><td>30</td><td>Circuit-breaker Handoff</td><td>被 B5 的 reject/timeout/paused 路径吸收。</td></tr>
+          <tr><td>31</td><td>No Regex, Structured Preview Only</td><td>作为通用默认过重；B1 保留 abstention，B6 按风险提供 preview。</td></tr>
+          <tr><td>32</td><td>One-field Standalone Entry</td><td>是极简约束检查，不足以表达 negotiation 和 durable identity。</td></tr>
+          <tr><td>33</td><td>One Hundred Concurrent Goals</td><td>是 B3 的 stress test，不是产品功能。</td></tr>
+          <tr><td>34</td><td>No Implicit Autonomy</td><td>被 B6 的 amendment 与 authorization boundary 吸收。</td></tr>
+          <tr><td>35</td><td>Single Universal Profile</td><td>被现有工程/科研差异反驳：会破坏 Claim Firewall 和 domain-specific acceptance。</td></tr>
+          <tr><td>36</td><td>Entry Executes the First Milestone</td><td>违反 router-only 边界；交接可靠性应由 B5 receipt 解决。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="original-rejection-summary">
+    <p class="eyebrow">Preserved 2026-07-10 explicit cuts</p>
+    <h2>Original Rejection Summary (2026-07-10)</h2>
     <div class="rejection-wrap">
       <table class="rejections">
         <thead><tr><th>#</th><th>Idea</th><th>Reason Rejected</th></tr></thead>
@@ -351,7 +525,7 @@
     </div>
   </section>
 
-  <footer class="composition-signal">Composed 2026-07-10T11:22Z by <code>ce-ideate</code> from the user prompt and the live <code>codex-goal-entry</code> / installed <code>goal-*</code> stack.</footer>
+  <footer class="composition-signal">Updated 2026-07-11T00:00+08:00 by <code>ce-ideate</code> from the user prompt, the live <code>codex-goal-entry</code> v0.1.0 repository, preserved 2026-07-10 ideation, and cited external primary sources.</footer>
 </main>
 </body>
 </html>

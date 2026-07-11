@@ -25,9 +25,15 @@ REQUIRED_FILES = [
     "scripts/validate_goal_runtime.py",
     "references/architecture.md",
     "references/runtime_profiles.json",
+    "references/entry_session_contract.json",
     "agents/openai.yaml",
     "tests/fixtures/engineering_runtime_trace.json",
     "tests/fixtures/autoresearch_runtime_trace.json",
+    "tests/fixtures/entry_session_cases.json",
+    "tests/fixtures/composite_phase_cases.json",
+    "tests/fixtures/idempotency_cases.json",
+    "tests/fixtures/cursor_cases.json",
+    "tests/fixtures/attestation_cases.json",
 ]
 ENTRY_MARKERS = [
     "$goal-entry",
@@ -42,6 +48,9 @@ ENTRY_MARKERS = [
     "decision_contract",
     "Runtime Profile",
     "Claim Firewall",
+    "entry_session",
+    "Semantic Pass",
+    "Authority Pass",
 ]
 
 
@@ -121,6 +130,11 @@ def validate(root: Path) -> list[str]:
         contract = decision.get("decision_contract", {})
         if contract.get("task_profile") != "complex_engineering":
             errors.append(f"unexpected task_profile: {contract.get('task_profile')}")
+        session = decision.get("entry_session", {})
+        if session.get("semantic_pass", {}).get("status") != "resolved":
+            errors.append(f"unexpected semantic status: {session.get('semantic_pass', {}).get('status')}")
+        if session.get("authority_pass", {}).get("status") != "planning_only":
+            errors.append(f"unexpected authority status: {session.get('authority_pass', {}).get('status')}")
     except Exception as exc:
         errors.append(f"resolver import/use failed: {exc}")
 
@@ -148,6 +162,28 @@ def validate(root: Path) -> list[str]:
         else:
             if payload.get("request_mode") != "execute_goal":
                 errors.append(f"resolver CLI unexpected request_mode: {payload.get('request_mode')}")
+
+    preview_proc = subprocess.run(
+        [sys.executable, str(router_path), "--request", "先调研，再实现，最后跑实验，但不要执行"],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    if preview_proc.returncode != 0:
+        errors.append(f"composite preview CLI failed: {preview_proc.stdout.strip()}")
+    else:
+        try:
+            preview = json.loads(preview_proc.stdout)
+        except json.JSONDecodeError as exc:
+            errors.append(f"composite preview did not emit JSON: {exc}")
+        else:
+            semantic = preview.get("entry_session", {}).get("semantic_pass", {})
+            authority = preview.get("entry_session", {}).get("authority_pass", {})
+            if not semantic.get("preview_only") or len(semantic.get("phase_graph", [])) < 2:
+                errors.append("composite preview did not preserve the phase graph")
+            if authority.get("status") != "not_required" or preview.get("goal_action") != "none":
+                errors.append("composite preview activated mutation authority")
 
     env = dict(os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"
