@@ -7,6 +7,7 @@
       "proof_ref": "proof:g-1:r3",
       "goal_id": "g-1",
       "revision": 3,
+      "state_source": "canonical-goal-store",
       "status": "active",
       "conversation_correlation": "thread-1",
       "issued_at": "2026-07-11T00:00:00Z",

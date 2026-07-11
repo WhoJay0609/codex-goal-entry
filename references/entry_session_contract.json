@@ -11,12 +11,15 @@
     "goal_selection_required"
   ],
   "idempotency_outcomes": ["new", "replayed_completed", "replayed_in_progress", "conflict"],
+  "session_states": ["in_progress", "complete"],
   "provenance_lanes": {
     "authoritative": ["instruction"],
     "context_only": ["quoted", "attachments", "prior_assistant"]
   },
   "trusted_cursor_issuers": ["goal-context"],
   "trusted_attestation_issuers": ["goal-preflight"],
+  "cursor_required_fields": ["issuer", "verification_status", "proof_ref", "goal_id", "revision", "state_source", "status", "issued_at", "conversation_correlation"],
+  "attestation_required_fields": ["provider_id", "issuer", "verification_status", "proof_ref", "contract_version", "health", "issued_at", "expires_at", "capabilities"],
   "legacy_projections": {
     "top_level_version": 1,
     "decision_contract_version": 2

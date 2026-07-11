@@ -253,6 +253,7 @@ class ResolverContractTests(unittest.TestCase):
         ))["entry_session"]
         self.assertEqual(first["session_id"], replay["session_id"])
         self.assertEqual("replayed_completed", replay["idempotency"]["status"])
+        self.assertEqual("complete", replay["status"])
         conflict = RESOLVER.resolve(args(
             "请实现别的功能", idempotency_key="client-1", prior_entry_session_json=prior
         ))["entry_session"]
@@ -288,6 +289,35 @@ class ResolverContractTests(unittest.TestCase):
         ))["entry_session"]
         self.assertEqual("blocked", stale["authority_pass"]["status"])
         self.assertIn("stale_goal_revision", stale["authority_pass"]["reasons"])
+
+    def test_canonical_cursor_alone_selects_resume_instead_of_goal_creation(self) -> None:
+        cursor = json.loads((FIXTURES / "cursor_cases.json").read_text(encoding="utf-8"))[0]["cursor"]
+        decision = RESOLVER.resolve(args("继续执行", goal_cursor_json=cursor))
+        self.assertEqual("active_goal_bind", decision["request_mode"])
+        self.assertNotEqual("create_goal", decision["goal_action"])
+        self.assertEqual("g-1", decision["entry_session"]["authority_pass"]["cursor"]["goal_id"])
+
+    def test_cursor_missing_source_or_correlation_is_rejected(self) -> None:
+        cursor = json.loads((FIXTURES / "cursor_cases.json").read_text(encoding="utf-8"))[0]["cursor"]
+        for key in ("state_source", "conversation_correlation", "issued_at"):
+            with self.subTest(key=key):
+                incomplete = dict(cursor)
+                incomplete.pop(key)
+                authority = RESOLVER.resolve(args("继续执行", goal_cursor_json=incomplete))["entry_session"]["authority_pass"]
+                self.assertEqual("blocked", authority["status"])
+
+    def test_unknown_active_phase_fails_closed(self) -> None:
+        authority = RESOLVER.resolve(args(
+            "请实现这个跨模块工程", active_phase_id="phase-999"
+        ))["entry_session"]["authority_pass"]
+        self.assertEqual("blocked", authority["status"])
+        self.assertIn("invalid_active_phase", authority["reasons"])
+
+    def test_read_only_intent_does_not_parse_authority_evidence(self) -> None:
+        authority = RESOLVER.resolve(args(
+            "只分析，不要执行", active_goals_json="not-json", provider_attestations_json="not-json"
+        ))["entry_session"]["authority_pass"]
+        self.assertEqual("not_required", authority["status"])
 
     def test_multiple_cursor_candidates_require_selection_and_recency_only_sorts(self) -> None:
         base = json.loads((FIXTURES / "cursor_cases.json").read_text(encoding="utf-8"))[0]["cursor"]
@@ -345,6 +375,17 @@ class ResolverContractTests(unittest.TestCase):
                 ))["entry_session"]["authority_pass"]
                 self.assertTrue(authority["goal_mutation_allowed"])
                 self.assertFalse(authority["phase_execution_allowed"])
+
+    def test_attestation_without_provider_identity_cannot_authorize_phase(self) -> None:
+        attestation = json.loads((FIXTURES / "attestation_cases.json").read_text(encoding="utf-8"))[0]["attestation"]
+        probe = RESOLVER.resolve(args("请实现这个跨模块工程"))["entry_session"]
+        attestation["request_fingerprint"] = probe["request_fingerprint"]
+        attestation.pop("provider_id")
+        authority = RESOLVER.resolve(args(
+            "请实现这个跨模块工程", provider_attestations_json=[attestation]
+        ))["entry_session"]["authority_pass"]
+        self.assertFalse(authority["phase_execution_allowed"])
+        self.assertIn("invalid_provider_identity", authority["provider"]["rejected_providers"][0]["reasons"])
 
 
 if __name__ == "__main__":

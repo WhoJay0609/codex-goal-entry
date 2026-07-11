@@ -247,9 +247,8 @@ def validate_trace(trace: dict[str, Any]) -> dict[str, Any]:
             branch = str(raw_event.get("branch", ""))
             if branch in drifted_branches:
                 violation(result, index, f"mutation attempted on paused drifted branch {branch}")
-            provider_id = str(raw_event.get("provider_id", ""))
-            if provider_id and provider_id in invalidated_providers:
-                violation(result, index, f"mutation attempted with invalidated provider {provider_id}")
+            if invalidated_providers:
+                violation(result, index, f"mutation attempted with invalidated provider {sorted(invalidated_providers)}")
             continue
 
         if event_type == "drift_corrected":

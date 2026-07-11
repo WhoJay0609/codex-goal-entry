@@ -349,8 +349,15 @@ def validate_cursor(cursor: Any, now: datetime) -> tuple[dict[str, Any] | None, 
         reasons.append("unverified_goal_cursor")
     if not cursor.get("goal_id") or not isinstance(cursor.get("revision"), int) or cursor.get("revision") < 0:
         reasons.append("invalid_goal_cursor_identity")
+    if not isinstance(cursor.get("state_source"), str) or not cursor.get("state_source"):
+        reasons.append("missing_cursor_state_source")
+    if not cursor.get("conversation_correlation") and not cursor.get("thread_id"):
+        reasons.append("missing_cursor_correlation")
     if cursor.get("status") not in {"active", "paused", "complete"}:
         reasons.append("invalid_goal_cursor_status")
+    issued = parse_timestamp(cursor.get("issued_at"))
+    if issued is None or issued > now:
+        reasons.append("invalid_cursor_issued_at")
     expires = parse_timestamp(cursor.get("expires_at"))
     if cursor.get("expires_at") and (expires is None or expires <= now):
         reasons.append("expired_goal_cursor")
@@ -396,6 +403,8 @@ def validate_attestations(value: Any, required: list[str], session_id: str, fing
         if not isinstance(item, dict):
             rejected.append({"provider_id": None, "reasons": ["invalid_attestation_shape"]})
             continue
+        if not isinstance(item.get("provider_id"), str) or not item.get("provider_id"):
+            reasons.append("invalid_provider_identity")
         if item.get("issuer") not in ENTRY_CONTRACT["trusted_attestation_issuers"]:
             reasons.append("untrusted_attestation_issuer")
         if item.get("verification_status") != "verified" or not item.get("proof_ref"):
@@ -455,6 +464,9 @@ def resolve_request_mode(text: str, has_active_goal: bool) -> tuple[str, list[st
         if EXPLICIT_PLANNING_PATTERN.search(text):
             return "plan_only", no_execution_matches + ["explicit_planning_with_no_execution"]
         return "report_only", no_execution_matches
+    active_matches = collect_matches(text, ACTIVE_GOAL_RULES)
+    if has_active_goal and active_matches:
+        return "active_goal_bind", active_matches
     execution_matches = collect_matches(text, EXECUTION_RULES)
     if execution_matches:
         return "execute_goal", execution_matches
@@ -468,10 +480,6 @@ def resolve_request_mode(text: str, has_active_goal: bool) -> tuple[str, list[st
         mode_matches = collect_matches(text, rules)
         if mode_matches:
             return mode, mode_matches
-
-    active_matches = collect_matches(text, ACTIVE_GOAL_RULES)
-    if has_active_goal and active_matches:
-        return "active_goal_bind", active_matches
 
     if has_active_goal:
         matched.append("active_goal_present_default_bind")
@@ -742,7 +750,9 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
     authoritative_instruction = str(request_parts["instruction"])
     semantic_instruction = str((clarification or {}).get("instruction", authoritative_instruction))
     active_goal_json = load_json_arg(args.active_goal_json)
-    has_active_goal = active_goal(active_goal_json)
+    goal_cursor_input = getattr(args, "goal_cursor_json", None)
+    active_goals_input = getattr(args, "active_goals_json", None)
+    has_active_goal = active_goal(active_goal_json) or bool(goal_cursor_input) or bool(active_goals_input)
     runtime_state = validate_runtime_state(load_json_arg(getattr(args, "runtime_state_json", None)))
     capabilities = normalize_capabilities(load_json_arg(getattr(args, "capabilities_json", None)))
 
@@ -802,29 +812,34 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
             idempotency_conflict = True
 
     now = datetime.now(timezone.utc)
-    selected_cursor, goal_candidates, cursor_reasons = select_cursor(
-        load_json_arg(getattr(args, "goal_cursor_json", None)),
-        load_json_arg(getattr(args, "active_goals_json", None)),
-        getattr(args, "conversation_correlation", None),
-        now,
-    )
+    if semantic_pass["mutation_candidate"]:
+        selected_cursor, goal_candidates, cursor_reasons = select_cursor(
+            load_json_arg(goal_cursor_input),
+            load_json_arg(active_goals_input),
+            getattr(args, "conversation_correlation", None),
+            now,
+        )
+    else:
+        selected_cursor, goal_candidates, cursor_reasons = None, [], []
     if getattr(args, "expected_goal_revision", None) is not None and selected_cursor:
         if selected_cursor["revision"] != args.expected_goal_revision:
             cursor_reasons.append("stale_goal_revision")
             selected_cursor = None
 
     phase_graph = semantic_pass["phase_graph"]
-    active_phase_id = getattr(args, "active_phase_id", None) or (phase_graph[0]["phase_id"] if phase_graph else None)
+    explicit_active_phase_id = getattr(args, "active_phase_id", None)
+    active_phase_id = explicit_active_phase_id or (phase_graph[0]["phase_id"] if phase_graph else None)
     active_phase = next((phase for phase in phase_graph if phase["phase_id"] == active_phase_id), None)
-    if active_phase is None and phase_graph:
-        active_phase = phase_graph[0]
+    invalid_active_phase = bool(explicit_active_phase_id and active_phase is None)
     required_attested = (
         list(RUNTIME_PROFILES[active_phase["runtime_profile"]]["required_capabilities"])
         if semantic_pass["mutation_candidate"] and active_phase
         else []
     )
     attestation = validate_attestations(
-        load_json_arg(getattr(args, "provider_attestations_json", None)),
+        load_json_arg(getattr(args, "provider_attestations_json", None))
+        if semantic_pass["mutation_candidate"] and not invalid_active_phase
+        else None,
         required_attested,
         session_id,
         request_fingerprint,
@@ -842,6 +857,9 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
     elif idempotency_conflict:
         authority_status = "conflict"
         authority_reasons.append("idempotency_fingerprint_conflict")
+    elif invalid_active_phase:
+        authority_status = "blocked"
+        authority_reasons.append("invalid_active_phase")
     elif "multiple_goal_candidates" in cursor_reasons:
         authority_status = "goal_selection_required"
         authority_reasons.extend(cursor_reasons)
@@ -943,7 +961,7 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
         },
         "entry_session": {
             "version": ENTRY_CONTRACT["contract_version"],
-            "status": "in_progress",
+            "status": "complete" if idempotency_status == "replayed_completed" else "in_progress",
             "session_id": session_id,
             "request_fingerprint": request_fingerprint,
             "idempotency": {
