@@ -1,0 +1,142 @@
+[
+  {
+    "name": "milestone_before_roadmap_approval",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"},
+      {"type": "milestone_started", "milestone_id": "m1", "dependencies": []}
+    ],
+    "expected_violation": "roadmap approval"
+  },
+  {
+    "name": "implementer_self_accepts",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "milestone_started", "milestone_id": "m1", "dependencies": []},
+      {"type": "milestone_evidence", "milestone_id": "m1", "implementer": "same", "artifacts": ["x"]},
+      {"type": "milestone_verdict", "milestone_id": "m1", "verifier": "same", "verdict": "passed"}
+    ],
+    "expected_violation": "independent verifier"
+  },
+  {
+    "name": "cleanup_missing_before_acceptance",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "milestone_started", "milestone_id": "m1", "dependencies": []},
+      {"type": "subagent_started", "milestone_id": "m1", "agent_id": "a"},
+      {"type": "subagent_terminal", "agent_id": "a", "outcome": "completion"},
+      {"type": "milestone_evidence", "milestone_id": "m1", "implementer": "i", "artifacts": ["x"]},
+      {"type": "milestone_verdict", "milestone_id": "m1", "verifier": "v", "verdict": "passed"}
+    ],
+    "expected_violation": "cleanup evidence"
+  },
+  {
+    "name": "drifted_branch_keeps_mutating",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "drift_detected", "branch": "b"},
+      {"type": "branch_mutation", "branch": "b"}
+    ],
+    "expected_violation": "paused drifted branch"
+  },
+  {
+    "name": "integrity_failure_promotes_claim",
+    "profile": "scientific_autoresearch",
+    "events": [
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "experiment_result", "experiment_id": "e", "integrity_status": "failed", "evidence_verdict": "supported", "result": "positive"},
+      {"type": "claim_proposed", "claim_id": "c", "experiment_id": "e", "qualified": false}
+    ],
+    "expected_violation": "claim firewall"
+  },
+  {
+    "name": "warning_claim_not_qualified",
+    "profile": "scientific_autoresearch",
+    "events": [
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "experiment_result", "experiment_id": "e", "integrity_status": "passed", "evidence_verdict": "warning", "result": "negative"},
+      {"type": "claim_proposed", "claim_id": "c", "experiment_id": "e", "qualified": false}
+    ],
+    "expected_violation": "qualified narrowing"
+  },
+  {
+    "name": "retry_limit_exhausted",
+    "profile": "scientific_autoresearch",
+    "events": [
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "milestone_started", "milestone_id": "m", "dependencies": []},
+      {"type": "milestone_evidence", "milestone_id": "m", "implementer": "i", "artifacts": ["x"]},
+      {"type": "milestone_verdict", "milestone_id": "m", "verifier": "v", "verdict": "failed"},
+      {"type": "corrective_retry", "milestone_id": "m"},
+      {"type": "corrective_retry", "milestone_id": "m"}
+    ],
+    "expected_violation": "retry limit"
+  },
+  {
+    "name": "replan_changes_locked_boundary",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "replan_unfinished", "boundary_changed": true, "preserves_accepted": true}
+    ],
+    "expected_violation": "locked boundary"
+  },
+  {
+    "name": "retry_before_failure",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"},
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "milestone_started", "milestone_id": "m", "dependencies": []},
+      {"type": "corrective_retry", "milestone_id": "m"}
+    ],
+    "expected_violation": "failed verdict"
+  },
+  {
+    "name": "replan_before_retry_exhaustion",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"},
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "milestone_started", "milestone_id": "m", "dependencies": []},
+      {"type": "milestone_evidence", "milestone_id": "m", "implementer": "i", "artifacts": ["x"]},
+      {"type": "milestone_verdict", "milestone_id": "m", "verifier": "v", "verdict": "failed"},
+      {"type": "corrective_retry", "milestone_id": "m"},
+      {"type": "replan_unfinished", "milestone_id": "m", "boundary_changed": false, "preserves_accepted": true}
+    ],
+    "expected_violation": "retry budget"
+  },
+  {
+    "name": "incomplete_open_trace",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"}
+    ],
+    "expected_violation": "clean closeout"
+  },
+  {
+    "name": "closeout_without_roadmap_or_milestone",
+    "profile": "complex_engineering",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"},
+      {"type": "goal_closed", "goal_id": "g"}
+    ],
+    "expected_violation": "roadmap approval"
+  },
+  {
+    "name": "research_closeout_without_claim_disposition",
+    "profile": "scientific_autoresearch",
+    "events": [
+      {"type": "goal_created", "goal_id": "g"},
+      {"type": "roadmap_approved", "goal_id": "g"},
+      {"type": "milestone_started", "milestone_id": "m", "dependencies": []},
+      {"type": "milestone_evidence", "milestone_id": "m", "implementer": "i", "artifacts": ["x"]},
+      {"type": "milestone_verdict", "milestone_id": "m", "verifier": "v", "verdict": "passed"},
+      {"type": "goal_closed", "goal_id": "g"}
+    ],
+    "expected_violation": "claim disposition"
+  }
+]

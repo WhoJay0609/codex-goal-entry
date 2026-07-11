@@ -1,0 +1,134 @@
+{
+  "contract_version": 1,
+  "shared_kernel": {
+    "lifecycle_states": [
+      "not_applicable",
+      "roadmap_required",
+      "roadmap_pending_approval",
+      "milestone_ready",
+      "resume_required",
+      "state_required",
+      "goal_complete"
+    ],
+    "authorization_states": [
+      "not_required",
+      "owner_approval_required",
+      "authorized",
+      "handoff_required",
+      "state_required",
+      "closed"
+    ],
+    "provider_statuses": ["standalone", "full_stack", "degraded", "incompatible"],
+    "verdicts": ["passed", "failed", "evidence_insufficient"],
+    "state_precedence": [
+      "goal",
+      "roadmap",
+      "accepted_milestone",
+      "active_work",
+      "worktree",
+      "conversation"
+    ],
+    "milestone_acceptance_requires": [
+      "roadmap_approved",
+      "prerequisites_accepted",
+      "independent_verifier_passed",
+      "cleanup_complete"
+    ],
+    "reclamation": {
+      "triggers": [
+        "completion",
+        "failure",
+        "replacement",
+        "duplicate_ownership",
+        "scope_drift",
+        "prolonged_blocking",
+        "heartbeat_timeout"
+      ],
+      "heartbeat_timeout_seconds": 120,
+      "prolonged_blocking_seconds": 900,
+      "graceful_reclamation_seconds": 30
+    },
+    "claim_firewall": {
+      "integrity_failed": "block",
+      "evidence_insufficient": "block",
+      "warning": "narrow_with_qualifiers",
+      "partial_support": "narrow_with_qualifiers",
+      "supported": "allow_traceable_claim"
+    }
+  },
+  "capabilities": {
+    "goal-preflight": "goal-preflight",
+    "goal-context": "goal-context",
+    "goal-plan": "goal-plan",
+    "goal-dispatch": "goal-dispatch",
+    "goal-team": "goal-team",
+    "goal-backend": "goal-backend",
+    "goal-trace": "goal-trace",
+    "goal-close": "goal-close",
+    "autoresearch": "autoresearch",
+    "experiment-agent": "experiment-agent",
+    "result-to-claim": "result-to-claim"
+  },
+  "profiles": {
+    "complex_engineering": {
+      "max_corrective_retries": 2,
+      "stages": [
+        "context",
+        "architecture_boundaries",
+        "implementation",
+        "integration",
+        "validation",
+        "delivery",
+        "closeout"
+      ],
+      "required_capabilities": [
+        "goal-preflight",
+        "goal-context",
+        "goal-plan",
+        "goal-dispatch",
+        "goal-team",
+        "goal-backend",
+        "goal-trace",
+        "goal-close"
+      ],
+      "evidence_expectations": [
+        "integration_ready_work_units",
+        "independent_milestone_verdict",
+        "cleanup_evidence",
+        "delivery_validation"
+      ]
+    },
+    "scientific_autoresearch": {
+      "max_corrective_retries": 1,
+      "stages": [
+        "research_bootstrap",
+        "protocol_lock",
+        "experiment_inner_loop",
+        "synthesis_outer_loop",
+        "direction_decision",
+        "final_evidence_review",
+        "writing_handoff"
+      ],
+      "direction_decisions": ["deepen", "broaden", "pivot", "conclude"],
+      "required_capabilities": [
+        "goal-preflight",
+        "goal-context",
+        "goal-plan",
+        "goal-dispatch",
+        "goal-backend",
+        "goal-trace",
+        "goal-close",
+        "autoresearch",
+        "experiment-agent",
+        "result-to-claim"
+      ],
+      "evidence_expectations": [
+        "protocol_and_artifact_trace",
+        "positive_and_negative_results",
+        "independent_milestone_verdict",
+        "claim_firewall_verdict",
+        "qualified_limitations"
+      ]
+    }
+  }
+}

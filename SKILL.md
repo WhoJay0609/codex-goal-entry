@@ -31,7 +31,9 @@ goal binding, planning, dispatch, or closeout should happen.
    subagents for non-trivial work.
 2. Treat the resolver output as the only source of truth for `request_mode`,
    `goal_entry_tier`, `superpowers_dispatch_level`, `subagent_execution_mode`,
-   route intent, readiness state, and goal action.
+   route intent, readiness state, goal action, and the typed `decision_contract`.
+   The typed contract selects a Runtime Profile and reports lifecycle,
+   authorization, provider compatibility, verifier separation, and next owner.
 3. For `execute_goal` or `active_goal_bind`, read
    `goal-preflight`
    and run `goal-preflight/scripts/run_goal_preflight.py` before goal
@@ -52,6 +54,21 @@ goal binding, planning, dispatch, or closeout should happen.
 10. When maintaining the skill stack or generated metadata, read
    `goal-metadata`.
 
+## Runtime Profiles
+
+- `complex_engineering` covers context, boundaries, implementation,
+  integration, validation, delivery, and closeout.
+- `scientific_autoresearch` covers research bootstrap, protocol lock,
+  experiment and synthesis loops, evidence review, Claim Firewall, and writing
+  handoff.
+- Both profiles use the Shared Goal Kernel contract in
+  `references/runtime_profiles.json`. This public router reports the contract;
+  external child owners perform roadmap, milestone, verification, reclamation,
+  and closeout actions.
+- Pass durable state with `--runtime-state-json` for resume decisions and a
+  capability manifest with `--capabilities-json` to distinguish full-stack,
+  degraded, standalone, and incompatible provider surfaces.
+
 ## Hard Rules
 
 - Do not create nested Codex goals.
@@ -62,10 +79,15 @@ goal binding, planning, dispatch, or closeout should happen.
   Superpowers subagent `allowed_skills`.
 - Do not bypass `resolve_goal_entry.py` with hand-written mode logic.
 - Do not bypass `goal-preflight` for `execute_goal` or `active_goal_bind`.
+- Do not treat a declared capability or a passing conformance trace as proof
+  that an external provider performed real Goal mutations.
+- Do not accept a milestone without an independent verifier and cleanup
+  evidence, or promote a scientific claim through a blocked Claim Firewall.
 
 ## Validation
 
 ```bash
 python3 scripts/quick_validate.py .
 python3 scripts/resolve_goal_entry.py --request 'PLEASE IMPLEMENT THIS PLAN' --readiness-status passed
+python3 scripts/validate_goal_runtime.py tests/fixtures/engineering_runtime_trace.json tests/fixtures/autoresearch_runtime_trace.json
 ```
