@@ -1,0 +1,16 @@
+[
+  {
+    "name": "valid_engineering",
+    "attestation": {
+      "provider_id": "goal-stack",
+      "issuer": "goal-preflight",
+      "verification_status": "verified",
+      "proof_ref": "proof:goal-stack:1",
+      "contract_version": 1,
+      "health": "healthy",
+      "issued_at": "2020-01-01T00:00:00Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "capabilities": ["goal-preflight", "goal-context", "goal-plan", "goal-dispatch", "goal-team", "goal-backend", "goal-trace", "goal-close"]
+    }
+  }
+]

@@ -2,7 +2,7 @@
 
 `goal-entry` 是一个面向 Codex goal-bound 工作流的轻量路由 skill。它本身不负责完成任务，而是先把用户请求分类，再决定后续应该走普通汇报、计划、目标创建、绑定已有 Goal、subagent 调度、backend artifact 初始化或 closeout。
 
-**当前维护版本：`v0.1.0`**
+**当前维护版本：`v0.2.0`**
 
 这个仓库是从本机 Codex skill 中拆出来的公开版本，重点保留：
 
@@ -10,13 +10,14 @@
 - `scripts/resolve_goal_entry.py`: 请求分类器，输出机器可读 JSON。
 - `references/runtime_profiles.json`: Shared Goal Kernel 与双 Runtime Profile
   的可移植声明式合同。
+- `references/entry_session_contract.json`: Two-Pass Entry Session、证据来源、重放与权限收窄合同。
 - `scripts/validate_goal_runtime.py`: 只读事件 trace 一致性验证器，不是执行器。
 - `references/architecture.md`: `goal-entry` 与 `goal-*` 子协议的职责拆分。
 - `agents/openai.yaml`: agent metadata 示例。
 
 ## 版本维护
 
-- `VERSION` 是仓库发布版本的单一来源，当前值为 `0.1.0`。
+- `VERSION` 是仓库发布版本的单一来源，当前值为 `0.2.0`。
 - `CHANGELOG.md` 记录每个公开版本的用户可见能力、兼容性和修复。
 - Git tag 使用 `vMAJOR.MINOR.PATCH`，例如 `v0.1.0`。
 - package release version 与 resolver/contract schema version 分开演进：发布补丁不要求修改 JSON schema version；只有公开数据合同发生对应变化时才提升 schema version。
@@ -53,6 +54,15 @@ python3 scripts/resolve_goal_entry.py --request 'PLEASE IMPLEMENT THIS PLAN with
   "request_mode": "execute_goal",
   "goal_entry_tier": "standard_superpowers",
   "goal_action": "create_goal",
+  "entry_session": {
+    "version": 1,
+    "semantic_pass": {"status": "resolved", "mutation_candidate": true},
+    "authority_pass": {
+      "status": "planning_only",
+      "goal_mutation_allowed": true,
+      "phase_execution_allowed": false
+    }
+  },
   "decision_contract": {
     "version": 2,
     "task_profile": "complex_engineering",
@@ -68,10 +78,34 @@ python3 scripts/resolve_goal_entry.py --request 'PLEASE IMPLEMENT THIS PLAN with
 }
 ```
 
-顶层字段保持 version 1 兼容语义；新增的 `decision_contract` version 2
+顶层字段保持 version 1 兼容语义；`decision_contract` version 2
 用于表达 Runtime Profile、生命周期、授权、provider 差异和下一责任 owner。
-standalone 环境缺少 child provider 时会明确降级，不会把“能分类”表述成
-“已经完整自治执行”。
+权威结果位于 additive `entry_session` version 1：Semantic Pass 锁定指令来源、
+歧义和 phase graph，Authority Pass 只能基于外部 cursor/attestation 缩窄授权，
+不能重新解释请求。standalone 环境缺少 verified evidence 时会明确降级，
+不会把“能分类”表述成“已经完整自治执行”。
+
+## Entry Session 输入与状态
+
+风险自适应入口始终运行 Intent Envelope；只有复合请求才生成多阶段 graph，
+只有 resume/bind 才要求 Durable Goal Cursor，只有待执行阶段才验证 provider
+attestation。常用 additive 参数：
+
+- `--request-parts-json`: 将 `instruction` 与 quoted、attachments、prior assistant context 分离；只有 instruction 能驱动 mutation intent。
+- `--clarification-json`: 对 mutation 歧义只接受一次定向澄清，仍歧义则返回 `unresolved_non_mutating`。
+- `--idempotency-key` / `--prior-entry-session-json`: exact retry 复用原 session；key 相同但 fingerprint 不同返回 conflict。
+- `--goal-cursor-json` / `--active-goals-json`: 只接受 trusted `goal-context` issuer 的 verified cursor；多个候选必须选择，recency 只排序。
+- `--provider-attestations-json`: 只接受 trusted `goal-preflight` issuer、scope 匹配、健康且未过期的阶段能力证据。
+
+复合预览示例：
+
+```bash
+python3 scripts/resolve_goal_entry.py \
+  --request '先调研，再实现，最后跑实验，但不要执行'
+```
+
+该命令返回非权威 phase graph；`goal_action=none`，Authority Pass 为
+`not_required`，不会创建 Goal、cursor 或 provider session。
 
 ## Runtime Profiles 与里程碑门禁
 
@@ -165,6 +199,9 @@ python3 scripts/resolve_goal_entry.py \
 `degraded`、`standalone` 或 `incompatible` 表达 provider 状态。通过
 `--runtime-state-json` 提供 durable Goal/roadmap/milestone state；权威记录冲突
 时返回 `state_required`，不会从对话文本猜测一个新的起点。
+这里的 `full_stack` 只表示 legacy 声明覆盖，不是当前 provider readiness。
+真正的阶段执行前提只看 `entry_session.authority_pass`；caller runtime state、
+普通 capability 名称或 opaque proof 字符串都不能自行提升为 canonical authority。
 
 ## 双场景一致性验证
 
@@ -187,6 +224,7 @@ provider 仍需提供自己的集成证据。
 - 不要把超过 4,000 字符的 objective 传给 goal creation。
 - 不要把 `goal-*` 协议职责交给普通 runtime subagent。
 - 不要把 capability 声明或通过的 trace replay 当作真实外部执行证据。
+- 不要用 caller snapshot 替代 `goal-context` issued cursor，也不要在 attestation 过期后通过 replay 延长执行授权。
 
 ## 许可证
 

@@ -31,9 +31,13 @@ goal binding, planning, dispatch, or closeout should happen.
    subagents for non-trivial work.
 2. Treat the resolver output as the only source of truth for `request_mode`,
    `goal_entry_tier`, `superpowers_dispatch_level`, `subagent_execution_mode`,
-   route intent, readiness state, goal action, and the typed `decision_contract`.
+   route intent, readiness state, goal action, typed `decision_contract`, and
+   authoritative additive `entry_session`.
    The typed contract selects a Runtime Profile and reports lifecycle,
    authorization, provider compatibility, verifier separation, and next owner.
+   The Entry Session runs a deterministic Semantic Pass followed by an
+   Authority Pass that may narrow, but never broaden or reinterpret, mutation
+   authority.
 3. For `execute_goal` or `active_goal_bind`, read
    `goal-preflight`
    and run `goal-preflight/scripts/run_goal_preflight.py` before goal
@@ -68,6 +72,13 @@ goal binding, planning, dispatch, or closeout should happen.
 - Pass durable state with `--runtime-state-json` for resume decisions and a
   capability manifest with `--capabilities-json` to distinguish full-stack,
   degraded, standalone, and incompatible provider surfaces.
+- Treat caller durable state and capability declarations as discovery and
+  compatibility inputs only. Binding/resume requires a verified
+  `goal-context` cursor; phase execution requires a healthy, unexpired,
+  session-scoped attestation from the trusted `goal-preflight` adapter.
+- Composite requests compile explicit ordered clauses into one Goal phase
+  graph. Profiles are phase-scoped; `goal-plan` still owns milestones and the
+  approved roadmap.
 
 ## Hard Rules
 
@@ -79,6 +90,11 @@ goal binding, planning, dispatch, or closeout should happen.
   Superpowers subagent `allowed_skills`.
 - Do not bypass `resolve_goal_entry.py` with hand-written mode logic.
 - Do not bypass `goal-preflight` for `execute_goal` or `active_goal_bind`.
+- Do not mutate when the Semantic Pass is ambiguous, idempotency conflicts,
+  cursor revision is stale, Goal selection is unresolved, or the Authority
+  Pass denies Goal mutation.
+- Do not schedule a phase unless `phase_execution_allowed=true`; legacy
+  `provider_status=full_stack` is declaration coverage only.
 - Do not treat a declared capability or a passing conformance trace as proof
   that an external provider performed real Goal mutations.
 - Do not accept a milestone without an independent verifier and cleanup

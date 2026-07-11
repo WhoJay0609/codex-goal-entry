@@ -1,0 +1,4 @@
+[
+  {"name": "completed", "prior_status": "complete", "expected": "replayed_completed"},
+  {"name": "in_progress", "prior_status": "in_progress", "expected": "replayed_in_progress"}
+]
