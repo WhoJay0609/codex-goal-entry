@@ -6,6 +6,9 @@
 
 - `SKILL.md`: public entry contract。
 - `scripts/resolve_goal_entry.py`: 请求分类器，输出机器可读 JSON。
+- `references/runtime_profiles.json`: Shared Goal Kernel 与双 Runtime Profile
+  的可移植声明式合同。
+- `scripts/validate_goal_runtime.py`: 只读事件 trace 一致性验证器，不是执行器。
 - `references/architecture.md`: `goal-entry` 与 `goal-*` 子协议的职责拆分。
 - `agents/openai.yaml`: agent metadata 示例。
 
@@ -40,12 +43,41 @@ python3 scripts/resolve_goal_entry.py --request 'PLEASE IMPLEMENT THIS PLAN with
   "request_mode": "execute_goal",
   "goal_entry_tier": "standard_superpowers",
   "goal_action": "create_goal",
+  "decision_contract": {
+    "version": 2,
+    "task_profile": "complex_engineering",
+    "lifecycle_state": "roadmap_required",
+    "authorization_state": "handoff_required",
+    "provider_status": "degraded",
+    "next_owner": "goal-plan"
+  },
   "readiness_gate": {
     "required": true,
     "status": "passed"
   }
 }
 ```
+
+顶层字段保持 version 1 兼容语义；新增的 `decision_contract` version 2
+用于表达 Runtime Profile、生命周期、授权、provider 差异和下一责任 owner。
+standalone 环境缺少 child provider 时会明确降级，不会把“能分类”表述成
+“已经完整自治执行”。
+
+## Runtime Profiles 与里程碑门禁
+
+- `complex_engineering`: context → architecture boundaries → implementation →
+  integration → validation → delivery → closeout。
+- `scientific_autoresearch`: research bootstrap → protocol lock → experiment
+  inner loop → synthesis outer loop → direction decision → evidence review →
+  writing handoff。
+
+两个 profile 共用同一组不可绕过的规则：roadmap 先审批、milestone 后执行；
+implementer 不能自验收；dependent milestone 只有在独立 verdict 为 `passed`
+且 subagent cleanup 完成后才能解锁；发现 drift 时先暂停受影响 branch；科研
+claim 必须通过 Claim Firewall。
+
+这个仓库负责输出和验证这些合同。真正的 milestone 调度、subagent 回收、
+Goal 更新和 closeout 仍由完整环境中的外部 `goal-*` child skills 执行。
 
 ## 使用例子
 
@@ -118,12 +150,33 @@ python3 scripts/resolve_goal_entry.py \
 
 公开仓库中的 `quick_validate.py` 只验证本仓库自身，不假设这些子 skills 已安装。
 
+可以通过 `--capabilities-json` 声明当前可用 child capabilities。resolver 会
+分别返回 available、missing 和 unknown capabilities，并用 `full_stack`、
+`degraded`、`standalone` 或 `incompatible` 表达 provider 状态。通过
+`--runtime-state-json` 提供 durable Goal/roadmap/milestone state；权威记录冲突
+时返回 `state_required`，不会从对话文本猜测一个新的起点。
+
+## 双场景一致性验证
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/validate_goal_runtime.py \
+  tests/fixtures/engineering_runtime_trace.json \
+  tests/fixtures/autoresearch_runtime_trace.json
+python3 scripts/quick_validate.py .
+```
+
+trace replay 验证 roadmap、milestone、独立验收、drift、cleanup 和 claim
+规则是否一致，但不证明外部 provider 真的完成了 Goal mutation。full-stack
+provider 仍需提供自己的集成证据。
+
 ## 安全边界
 
 - 不要让 subagent 创建、更新或关闭 Goal。
 - 不要跳过 readiness gate 直接创建 Goal。
 - 不要把超过 4,000 字符的 objective 传给 goal creation。
 - 不要把 `goal-*` 协议职责交给普通 runtime subagent。
+- 不要把 capability 声明或通过的 trace replay 当作真实外部执行证据。
 
 ## 许可证
 

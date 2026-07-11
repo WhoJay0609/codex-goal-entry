@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ideation: goal-entry for complex engineering and autoresearch</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f1ea;
+      --paper: #fffdf8;
+      --ink: #17211b;
+      --muted: #55645a;
+      --line: #d8d6cb;
+      --accent: #0b6b55;
+      --accent-soft: #dff3ea;
+      --accent-text: #0a523f;
+      --blue-soft: #e7eefb;
+      --blue-text: #234c88;
+      --amber-soft: #f8efd1;
+      --amber-text: #765912;
+      --rose-soft: #f6e4e2;
+      --rose-text: #803c36;
+      --shadow: 0 18px 48px rgba(37, 45, 39, 0.08);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.68 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    }
+    main {
+      width: min(94vw, 960px);
+      margin: 34px auto 70px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    header { padding: 48px 52px 38px; background: #183229; color: #f8f5ed; }
+    .eyebrow { margin: 0 0 10px; font-size: 12px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: #a9ddc9; }
+    h1 { margin: 0; font-size: clamp(30px, 5vw, 51px); line-height: 1.06; letter-spacing: -.035em; max-width: 16ch; }
+    .lede { max-width: 66ch; margin: 19px 0 0; color: #d9e7e0; font-size: 16px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 25px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 6px 10px; background: rgba(255,255,255,.08); color: #eef7f2; font-size: 12px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--line); border-bottom: 1px solid var(--line); }
+    .stat { padding: 20px 24px; background: #f8f6f0; }
+    .stat strong { display: block; font-size: 28px; line-height: 1; }
+    .stat span { display: block; margin-top: 7px; color: var(--muted); font-size: 12px; }
+    nav { padding: 18px 52px; border-bottom: 1px solid var(--line); background: #fbfaf6; }
+    nav ul, .jump-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+    nav a, .jump-list a { display: inline-block; border-radius: 999px; padding: 7px 11px; color: var(--accent-text); background: var(--accent-soft); text-decoration: none; font-size: 12px; font-weight: 700; }
+    section { padding: 38px 52px; border-bottom: 1px solid var(--line); }
+    h2 { margin: 0 0 18px; font-size: 26px; letter-spacing: -.02em; }
+    h3 { margin: 0; font-size: 22px; letter-spacing: -.018em; }
+    p { max-width: 72ch; margin: 11px 0; }
+    code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .91em; background: #ebe9e1; border-radius: 6px; padding: .1em .35em; }
+    .callout { margin: 22px 0 0; padding: 18px 20px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-text); }
+    .callout .eyebrow { color: var(--accent-text); margin-bottom: 5px; }
+    .axes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 0; list-style: none; }
+    .axes li { padding: 15px 17px; border-radius: 14px; background: #f4f3ee; border: 1px solid var(--line); }
+    .axes strong { display: block; margin-bottom: 3px; }
+    .jump-list { margin: 0 0 22px; }
+    article.idea { margin-top: 18px; padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: #fffefa; }
+    .idea-head { display: flex; gap: 14px; align-items: flex-start; }
+    .rank { flex: 0 0 auto; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: white; font-weight: 800; }
+    .idea-head p { margin: 5px 0 0; color: var(--muted); }
+    .idea dl { display: grid; grid-template-columns: 112px 1fr; gap: 9px 14px; margin: 21px 0 0; }
+    .idea dt { font-size: 11px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .idea dd { margin: 0; }
+    .badge { display: inline-flex; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 800; }
+    .badge.high { color: var(--accent-text); background: var(--accent-soft); }
+    .badge.medium { color: var(--amber-text); background: var(--amber-soft); }
+    .badge.large { color: var(--rose-text); background: var(--rose-soft); }
+    .visual { margin: 22px 0 4px; border-radius: 15px; padding: 15px; background: #f7f5ef; border: 1px solid var(--line); overflow-x: auto; }
+    .visual figcaption { margin-top: 8px; color: var(--muted); font-size: 12px; }
+    svg { display: block; width: 100%; min-width: 680px; height: auto; }
+    .svg-box { fill: #fffdf8; stroke: #9eaaa2; stroke-width: 1.5; }
+    .svg-accent { fill: #dff3ea; stroke: #0b6b55; stroke-width: 1.8; }
+    .svg-blue { fill: #e7eefb; stroke: #4872a8; stroke-width: 1.5; }
+    .svg-amber { fill: #f8efd1; stroke: #9b771c; stroke-width: 1.5; }
+    .svg-text { fill: #17211b; font: 700 13px Inter, system-ui, sans-serif; text-anchor: middle; dominant-baseline: middle; }
+    .svg-small { fill: #425249; font: 11px Inter, system-ui, sans-serif; text-anchor: middle; }
+    .svg-arrow { stroke: #557067; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+    .rejections { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .rejections th { text-align: left; background: #183229; color: white; padding: 10px 12px; }
+    .rejections td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    .rejections tr:nth-child(even) td { background: #f7f5ef; }
+    footer { padding: 20px 52px; background: #183229; color: #d9e7e0; font-size: 12px; }
+    footer code { color: #f8f5ed; background: rgba(255,255,255,.11); }
+    strong { color: inherit; }
+    @media (max-width: 720px) {
+      main { width: 100%; margin: 0; border: 0; border-radius: 0; }
+      header, section, nav, footer { padding-left: 22px; padding-right: 22px; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .axes { grid-template-columns: 1fr; }
+      .idea dl { grid-template-columns: 1fr; gap: 3px; }
+      .idea dd { margin-bottom: 8px; }
+      .rejection-wrap { overflow-x: auto; }
+      .rejections { min-width: 720px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Ideation · repository grounded</p>
+    <h1>让 <code>goal-entry</code> 真正承接复杂工程与科研 autoresearch</h1>
+    <p class="lede">核心判断：问题不在于缺少一个更重的入口，而在于入口只输出通用 mode/tier，无法表达任务画像、生命周期状态与证据协议。最强方向是让它成为薄而有类型的控制面，再复用现有 <code>goal-*</code> 与 harness backend。</p>
+    <div class="meta" aria-label="Document metadata">
+      <span class="chip">Date <time datetime="2026-07-10">2026-07-10</time></span>
+      <span class="chip">Topic goal-entry-complex-engineering-autoresearch</span>
+      <span class="chip">Focus 复杂工程项目 + 科研 autoresearch</span>
+      <span class="chip">Mode repo-grounded</span>
+    </div>
+  </header>
+
+  <div class="stats" aria-label="Ideation counts">
+    <div class="stat"><strong>35</strong><span>merged raw candidates</span></div>
+    <div class="stat"><strong>7</strong><span>ranked survivors</span></div>
+    <div class="stat"><strong>5</strong><span>topic axes covered</span></div>
+    <div class="stat"><strong>28</strong><span>ideas cut or absorbed</span></div>
+  </div>
+
+  <nav aria-label="Document navigation">
+    <ul>
+      <li><a href="#grounding-context">Grounding Context</a></li>
+      <li><a href="#topic-axes">Topic Axes</a></li>
+      <li><a href="#ranked-ideas">Ranked Ideas</a></li>
+      <li><a href="#rejection-summary">Rejection Summary</a></li>
+    </ul>
+  </nav>
+
+  <section id="grounding-context">
+    <p class="eyebrow">Evidence before direction</p>
+    <h2>Grounding Context</h2>
+    <p><strong>Codebase Context.</strong> 独立仓库只发布轻量 <code>goal-entry</code>：一个 Python stdlib resolver、入口合同、架构说明和 quick validator。仓库规则明确要求它保持 router-only，详细执行协议继续由外部 <code>goal-*</code> child skills 所有。</p>
+    <p>已安装环境远比公开包丰富：它已经拥有 preflight、context、objective、dispatch/team、backend、trace/closeout，以及 <code>codex-autoresearch</code>、迭代状态、metric trust、benchmark weakening guard、resume summary 和研究/工程/bridge preset。真正的缺口是入口无法把请求可靠地映射到这些能力。</p>
+    <p>现场回放暴露了两个直接问题：显式“跨模块 + 并行 + 回归 + 发布”的工程请求能进入 <code>full_autonomous</code>；但自然表达的“开展自动科研、检索文献、提出假设、运行消融、分析结果”会因 <code>分析</code> 命中 review 而落入 <code>report_only</code>。同样，“继续昨天失败的 trial 并重跑”在没有外部 active-goal snapshot 时也会回落到 <code>report_only</code>。</p>
+    <p>还有一个当前态漂移：standalone <code>SKILL.md</code> 仍声明 <code>harness-agent-for-goal</code> 与 <code>harness-agents-md-context</code> “remain installed”，但 live skill tree 已不存在这些目录。这说明 public package 与 full stack 的契约一致性不能继续只靠文字维护。</p>
+    <div class="callout">
+      <p class="eyebrow">Boundary that must survive</p>
+      <p><strong>不要把科研或工程执行细节重新塞回 <code>goal-entry</code>。</strong> 它应只负责产生更有语义、可验证、可协商的路由结果；阶段图、实验合同、团队和证据门继续由 child owners 承接。</p>
+    </div>
+    <p>外部研究工具连续两次在网络层失败，因此本轮排序不使用任何外部主张；结论主要来自当前仓库、installed skill stack、backend scripts、autoresearch contract 和历史经验。独立 verifier dispatch 也受当前 harness 映射限制，本轮由主线程逐条核验所有 load-bearing basis。</p>
+  </section>
+
+  <section id="topic-axes">
+    <p class="eyebrow">Surface map</p>
+    <h2>Topic Axes</h2>
+    <ul class="axes">
+      <li><strong>1 · Intent and policy routing</strong>区分执行、计划、continuation、复杂工程与科学研究意图。</li>
+      <li><strong>2 · Orchestration graph and recovery</strong>表达阶段、依赖、checkpoint、失败、恢复与下一 gate。</li>
+      <li><strong>3 · Scientific lifecycle and evidence</strong>连接问题、假设、协议、实验、指标、结果、claim 与论文。</li>
+      <li><strong>4 · Team and skill routing</strong>按阶段选择 engineering、research、bridge、evidence 与 safety 能力。</li>
+      <li><strong>5 · Verification and portability</strong>用场景评测与 capability negotiation 守住 standalone/full-stack 一致性。</li>
+    </ul>
+  </section>
+
+  <section id="ranked-ideas">
+    <p class="eyebrow">Seven directions worth developing</p>
+    <h2>Ranked Ideas</h2>
+    <ul class="jump-list" aria-label="Ranked idea jump list">
+      <li><a href="#a1">A1. Runtime Profiles</a></li>
+      <li><a href="#a2">A2. Typed Resolver</a></li>
+      <li><a href="#a3">A3. Evaluation Harness</a></li>
+      <li><a href="#a4">A4. Resume Cursor</a></li>
+      <li><a href="#a5">A5. Engineering Graph</a></li>
+      <li><a href="#a6">A6. Research Loop</a></li>
+      <li><a href="#a7">A7. Claim Firewall</a></li>
+    </ul>
+
+    <article class="idea" id="a1">
+      <div class="idea-head"><div class="rank">1</div><div><h3>A1. Goal Runtime Profile packs</h3><p>把已有能力连接成可选的运行画像，而不是继续扩张入口正文。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>定义轻量 declarative packs，把 <code>complex_engineering</code> 与 <code>scientific_autoresearch</code> 映射到生命周期阶段、capability requirements、默认 team bias、artifact contract、evidence gate 与语义 closeout。<code>goal-entry</code> 只选择 profile，child skills/backend 继续拥有执行协议。</dd>
+        <dt>Axis</dt><dd>Team and skill routing</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>references/architecture.md:3-22</code> 已将职责拆给 child owners；<code>team_presets.py:81-157</code> 已有 research、bridge、engineering、delivery 和 evidence 队形。</dd>
+        <dt>Rationale</dt><dd>这是连接现有碎片化能力的最小架构，同时完整保留 public router-only 边界。</dd>
+        <dt>Downsides</dt><dd>需要一个小型、版本化 profile schema，并明确 capability negotiation 与缺失 provider 的降级行为。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">94%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+      <figure class="visual">
+        <svg viewBox="0 0 860 240" role="img" aria-label="Conceptual flow from request through typed resolver and runtime profiles to existing child contracts">
+          <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#557067"/></marker></defs>
+          <rect class="svg-box" x="25" y="82" rx="14" width="140" height="70"/><text class="svg-text" x="95" y="108">User request</text><text class="svg-small" x="95" y="132">工程 / 科研 / 恢复</text>
+          <path class="svg-arrow" d="M165 117 H225"/>
+          <rect class="svg-accent" x="225" y="68" rx="14" width="170" height="98"/><text class="svg-text" x="310" y="98">Typed resolver</text><text class="svg-small" x="310" y="122">intent · profile · state</text><text class="svg-small" x="310" y="143">thin control plane</text>
+          <path class="svg-arrow" d="M395 117 H455"/>
+          <rect class="svg-blue" x="455" y="25" rx="14" width="175" height="72"/><text class="svg-text" x="542" y="51">Complex engineering</text><text class="svg-small" x="542" y="75">phase graph + dispatch</text>
+          <rect class="svg-amber" x="455" y="142" rx="14" width="175" height="72"/><text class="svg-text" x="542" y="168">Autoresearch</text><text class="svg-small" x="542" y="192">two loops + evidence</text>
+          <path class="svg-arrow" d="M630 61 H700"/><path class="svg-arrow" d="M630 178 H700"/>
+          <rect class="svg-box" x="700" y="68" rx="14" width="135" height="98"/><text class="svg-text" x="767" y="97">Existing owners</text><text class="svg-small" x="767" y="121">goal-* skills</text><text class="svg-small" x="767" y="142">harness backend</text>
+        </svg>
+        <figcaption>Illustrative direction: the new layer links existing owners; it does not replace them or become a second scheduler.</figcaption>
+      </figure>
+    </article>
+
+    <article class="idea" id="a2">
+      <div class="idea-head"><div class="rank">2</div><div><h3>A2. Typed three-stage resolver</h3><p>先解析“想做什么”，再判断“属于什么工作”，最后识别“现在处于哪里”。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>将一次混合 regex pass 拆成三个独立、确定性、可测试阶段：intent（report/plan/execute）、task profile（engineering/research/bridge/general）与 lifecycle state（new/resume/recover/close）。输出版本化 typed result、stage evidence、ambiguities 与 v1 compatibility projection。</dd>
+        <dt>Axis</dt><dd>Intent and policy routing</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>resolve_goal_entry.py:203-262</code> 把 mode、tier 与通用软件 route 混在一起；<code>:371-389</code> 缺少 profile、lifecycle 和 state 字段。现场请求证明 <code>分析</code> 可把科研执行误判为报告。</dd>
+        <dt>Rationale</dt><dd>把错误从“规则越来越多”提升为“语义维度缺失”，同时仍保持 deterministic policy。</dd>
+        <dt>Downsides</dt><dd>必须管理 schema migration、规则 precedence 和中文/英文等价性；不应引入不可解释的自由模型分类作为唯一真相。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">92%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="a3">
+      <div class="idea-head"><div class="rank">3</div><div><h3>A3. Contract-Conformance Evaluation Harness</h3><p>先把目标行为固定成可执行合同，再升级 resolver。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>建立真实中英文 golden journeys，覆盖复杂工程、research bootstrap、实验迭代、paper-to-code、失败恢复、no-execution 与 closeout；再加 metamorphic invariants 和 standalone/full-stack differential conformance，断言完整 typed decision。</dd>
+        <dt>Axis</dt><dd>Verification and portability</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>scripts/quick_validate.py:68-115</code> 只有一个英文 “PLEASE IMPLEMENT THIS PLAN” 的 in-process assertion 与等价 CLI smoke；<code>SKILL.md:16-25</code> 声明的 legacy entries 已与 live installed tree 不一致。</dd>
+        <dt>Rationale</dt><dd>这是最安全的第一落地点，能在架构演进前先捕获当前误路由，并防止后续回到 regex whack-a-mole。</dd>
+        <dt>Downsides</dt><dd>场景预期本身就是 policy，需要 owner 审核；过度快照整个 JSON 会造成不必要的脆弱性。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">96%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="a4">
+      <div class="idea-head"><div class="rank">4</div><div><h3>A4. Evidence-Carrying Resume Cursor</h3><p>让“继续做”绑定可验证状态，而不是绑定聊天记忆或一句关键词。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>发现 active Goal、harness run、<code>research-state.yaml</code> 与 checkpoint artifacts，选择最后一个已验证 checkpoint，并返回 state source、active/blocked work、next gate、conflicts 与 confidence。找不到状态时进入 targeted handshake，不再静默回落为 <code>report_only</code>。</dd>
+        <dt>Axis</dt><dd>Orchestration graph and recovery</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>resolve_goal_entry.py:221-228</code> 只有外部传入 active-goal 才能 bind；<code>summarize_goal_resume.py:70-130</code> 已能从 queue、worktree、cleanup 与 goal-sync 重建下一动作。</dd>
+        <dt>Rationale</dt><dd>跨 session 中断与恢复是复杂工程和 autoresearch 的共同主故障面，现有 backend 已提供大半证据。</dd>
+        <dt>Downsides</dt><dd>多个 state format 之间需要严格 precedence/conflict rules；artifact-derived inference 必须显式低置信，不能覆盖声明状态。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">91%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge large">High</span></dd>
+      </dl>
+      <figure class="visual">
+        <svg viewBox="0 0 860 230" role="img" aria-label="Resume cursor selects the last validated checkpoint from multiple durable state sources">
+          <defs><marker id="arrow2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#557067"/></marker></defs>
+          <rect class="svg-box" x="24" y="20" rx="12" width="160" height="48"/><text class="svg-text" x="104" y="44">Active Goal</text>
+          <rect class="svg-box" x="24" y="90" rx="12" width="160" height="48"/><text class="svg-text" x="104" y="114">Harness run</text>
+          <rect class="svg-box" x="24" y="160" rx="12" width="160" height="48"/><text class="svg-text" x="104" y="184">Research state</text>
+          <path d="M184 44 H260 V112 H330" stroke="#557067" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+          <path d="M184 114 H330" stroke="#557067" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+          <path d="M184 184 H260 V116 H330" stroke="#557067" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+          <rect class="svg-accent" x="330" y="70" rx="14" width="200" height="88"/><text class="svg-text" x="430" y="99">Validated checkpoint</text><text class="svg-small" x="430" y="124">precedence · conflict · confidence</text>
+          <path d="M530 114 H600" stroke="#557067" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+          <rect class="svg-blue" x="600" y="65" rx="14" width="230" height="98"/><text class="svg-text" x="715" y="94">Resume cursor</text><text class="svg-small" x="715" y="120">active / blocked / next gate</text><text class="svg-small" x="715" y="143">or state-required handshake</text>
+        </svg>
+        <figcaption>Illustrative direction: resume is derived from durable evidence and validated checkpoints, not merely the latest conversational instruction.</figcaption>
+      </figure>
+    </article>
+
+    <article class="idea" id="a5">
+      <div class="idea-head"><div class="rank">5</div><div><h3>A5. Complex Engineering Phase Graph</h3><p>把跨模块交付编译为可恢复、可并行、可集成的 dependency graph。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>为 complex-engineering profile 形成 context → architecture decision → implementation branches → integration → verification → release/closeout 的阶段 DAG。每个节点生成 integration-ready delegation packet：owner、scope、dependencies、wait rules、output contract、acceptance mapping、conflict owner 与 fallback。</dd>
+        <dt>Axis</dt><dd>Orchestration graph and recovery</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>goal-dispatch/SKILL.md:23-39</code> 已要求 context、dependency、wait、output、integration、conflict、fallback 和 non-overlapping writes，但 entry 只给出一个 generic route。</dd>
+        <dt>Rationale</dt><dd>将现有强 prose contract 变成可审计执行图，直接改善多模块、多 agent 与 worktree 合流。</dd>
+        <dt>Downsides</dt><dd>小项目不应被强制建图；activation 必须受 profile/horizon 控制，避免流程税。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">86%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge large">High</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="a6">
+      <div class="idea-head"><div class="rank">6</div><div><h3>A6. Scientific Two-Loop Experiment Contract</h3><p>把科研方法变成 durable Goal semantics，而不是把科研当作“更长的软件任务”。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>显式表示 bootstrap、inner experiments、outer synthesis 与 finalize；要求 protocol-before-results、confirmatory/exploratory label、baseline/metric trust、sanity checks、budget epochs，以及 <code>DEEPEN/BROADEN/PIVOT/CONCLUDE</code> 转移。</dd>
+        <dt>Axis</dt><dd>Scientific lifecycle and evidence</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> autoresearch <code>SKILL.md:60-148</code> 定义循环与实验纪律，<code>:188-227</code> 定义方向转移；<code>init_auto_harness.py:515-645</code> 已保存 iteration、stopping、benchmark 与 metric-trust state。</dd>
+        <dt>Rationale</dt><dd>本地已有研究 workflow 与 backend primitives，只缺少 Goal 控制面的正式接线与恢复语义。</dd>
+        <dt>Downsides</dt><dd>必须防止与现有 autoresearch/experiment skills 形成第二个 scheduler；profile 应引用它们而非复制执行步骤。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">90%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge large">High</span></dd>
+      </dl>
+      <figure class="visual">
+        <svg viewBox="0 0 860 250" role="img" aria-label="Scientific autoresearch loop with evidence gate before paper claim updates">
+          <defs><marker id="arrow3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#557067"/></marker></defs>
+          <rect class="svg-blue" x="30" y="88" rx="14" width="150" height="72"/><text class="svg-text" x="105" y="114">Bootstrap</text><text class="svg-small" x="105" y="139">literature · hypothesis</text>
+          <path d="M180 124 H235" stroke="#557067" stroke-width="2" marker-end="url(#arrow3)"/>
+          <rect class="svg-accent" x="235" y="50" rx="14" width="170" height="72"/><text class="svg-text" x="320" y="76">Inner loop</text><text class="svg-small" x="320" y="101">protocol · run · measure</text>
+          <rect class="svg-amber" x="235" y="157" rx="14" width="170" height="72"/><text class="svg-text" x="320" y="183">Outer loop</text><text class="svg-small" x="320" y="208">synthesize · redirect</text>
+          <path d="M405 86 C455 86 455 193 405 193" stroke="#557067" stroke-width="2" fill="none" marker-end="url(#arrow3)"/>
+          <path d="M235 193 C190 193 190 86 235 86" stroke="#557067" stroke-width="2" fill="none" marker-end="url(#arrow3)"/>
+          <path d="M405 193 H490" stroke="#557067" stroke-width="2" marker-end="url(#arrow3)"/>
+          <rect class="svg-box" x="490" y="150" rx="14" width="155" height="86"/><text class="svg-text" x="567" y="178">Direction gate</text><text class="svg-small" x="567" y="202">deepen · broaden</text><text class="svg-small" x="567" y="220">pivot · conclude</text>
+          <path d="M645 193 H700" stroke="#557067" stroke-width="2" marker-end="url(#arrow3)"/>
+          <rect class="svg-amber" x="700" y="141" rx="14" width="135" height="104"/><text class="svg-text" x="767" y="170">Evidence gate</text><text class="svg-small" x="767" y="195">integrity · claim</text><text class="svg-small" x="767" y="216">limitations · review</text>
+        </svg>
+        <figcaption>Illustrative direction: research may iterate or pivot freely, but conclusion and manuscript claims cross a separate evidence gate.</figcaption>
+      </figure>
+    </article>
+
+    <article class="idea" id="a7">
+      <div class="idea-head"><div class="rank">7</div><div><h3>A7. Scientific Claim Firewall</h3><p>实验“跑完”不等于 claim 可以写进论文。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>在 experiment completion 与 manuscript mutation 之间设置 hard gate：experiment integrity、result-to-claim verdict、limitations 和 independent evidence review 必须落盘。<code>partial/no</code> 只能缩小 claim、保留负结果或安排补充实验。</dd>
+        <dt>Axis</dt><dd>Scientific lifecycle and evidence</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>experiment-audit/SKILL.md:13-27</code> 列出 fake ground truth、self-normalization、phantom result 与 scope inflation；<code>result-to-claim/SKILL.md:15-20,92-138,180-187</code> 已按 integrity 与 yes/partial/no verdict 路由。</dd>
+        <dt>Rationale</dt><dd>它直接保护 autoresearch 最危险的输出：语气坚定但证据不足的科学结论。</dd>
+        <dt>Downsides</dt><dd>现有 experiment-audit 是 advisory；新 profile 必须明确哪些失败真正阻断 paper write，避免把所有 warn 都升级为永久阻塞。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">93%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+  </section>
+
+  <section id="rejection-summary">
+    <p class="eyebrow">Explicit cuts</p>
+    <h2>Rejection Summary</h2>
+    <div class="rejection-wrap">
+      <table class="rejections">
+        <thead><tr><th>#</th><th>Idea</th><th>Reason Rejected</th></tr></thead>
+        <tbody>
+          <tr><td>2</td><td>First-class task profiles</td><td>被更完整的 Runtime Profiles 与 typed resolver 吸收。</td></tr>
+          <tr><td>3</td><td>Research execution intent rules</td><td>必要但过于战术；并入 resolver 与 scenario harness。</td></tr>
+          <tr><td>5</td><td>Missing-state handshake</td><td>作为 Resume Cursor 的缺失状态行为更有价值。</td></tr>
+          <tr><td>6</td><td>Decision schema v2</td><td>是 typed resolver 的实现机制，不足以独立成方向。</td></tr>
+          <tr><td>7</td><td>Capability manifest negotiation</td><td>并入 Runtime Profiles；单独存在缺少阶段与证据语义。</td></tr>
+          <tr><td>8</td><td>Portable degradation plan</td><td>是 Runtime Profiles 的 acceptance criterion，单独低于 ambition floor。</td></tr>
+          <tr><td>12</td><td>Desired-vs-observed reconciliation</td><td>成立但初期成本太高；阶段图与 Resume Cursor 已覆盖近期收益。</td></tr>
+          <tr><td>13</td><td>Event-sourced resume ledger</td><td>backend 已大量采用 JSONL；保留为 Resume Cursor 的实现变体。</td></tr>
+          <tr><td>14</td><td>Checkpoint and rollback</td><td>应作为 Resume Cursor 子合同，不单列。</td></tr>
+          <tr><td>15</td><td>Scientific experiment contract</td><td>被更完整的 Scientific Two-Loop Experiment Contract 吸收。</td></tr>
+          <tr><td>16</td><td>Protocol-before-results lock</td><td>强规则，但属于 Two-Loop Contract 的核心组件。</td></tr>
+          <tr><td>17</td><td>Claim-evidence graph</td><td>并入 Claim Firewall。</td></tr>
+          <tr><td>19</td><td>Metric-trust gate at entry</td><td>并入 research preflight 与 Two-Loop Contract。</td></tr>
+          <tr><td>20</td><td>Autonomy envelope</td><td>是所有 Runtime Profile 的横切字段，单独过于泛化。</td></tr>
+          <tr><td>21</td><td>Two-dimensional tiering</td><td>作为 typed resolver refinement 保留，不单独晋级。</td></tr>
+          <tr><td>22</td><td>Adaptive team bias selection</td><td>已有能力，应该成为 Runtime Profile 字段。</td></tr>
+          <tr><td>23</td><td>Single-agent protocol equivalence</td><td>是 portability acceptance criterion，单独不值得立项。</td></tr>
+          <tr><td>24</td><td>Delegation compiler</td><td>并入 Complex Engineering Phase Graph。</td></tr>
+          <tr><td>25</td><td>Capability-first skill router</td><td>作为 Runtime Profiles 的 extension mechanism 更合理。</td></tr>
+          <tr><td>27</td><td>Metamorphic routing tests</td><td>并入 Contract-Conformance Evaluation Harness。</td></tr>
+          <tr><td>28</td><td>Differential conformance</td><td>并入 Contract-Conformance Evaluation Harness。</td></tr>
+          <tr><td>29</td><td>Decision explainability</td><td>并入 typed resolver 的 stage evidence 与 ambiguity output。</td></tr>
+          <tr><td>30</td><td>Shadow routing telemetry</td><td>有用但需要额外 observation infra；在本地合同稳定后再考虑。</td></tr>
+          <tr><td>31</td><td>Objective Capsule compiler</td><td><code>goal-objective</code> 已拥有该职责，不建立竞争 owner。</td></tr>
+          <tr><td>32</td><td>Research readiness preflight</td><td>并入现有 preflight owner 与 Two-Loop Contract。</td></tr>
+          <tr><td>33</td><td>Profile-specific closeout</td><td>Runtime Profiles 与 Claim Firewall 已给出更强语义。</td></tr>
+          <tr><td>34</td><td>Budget epochs</td><td>并入 Two-Loop Contract 的 stopping/budget policy。</td></tr>
+          <tr><td>35</td><td>Artifact-derived phase inference</td><td>风险较高；仅作为 Resume Cursor 的低置信 fallback。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="composition-signal">Composed 2026-07-10T11:22Z by <code>ce-ideate</code> from the user prompt and the live <code>codex-goal-entry</code> / installed <code>goal-*</code> stack.</footer>
+</main>
+</body>
+</html>

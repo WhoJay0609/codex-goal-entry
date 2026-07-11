@@ -13,6 +13,11 @@ from pathlib import Path
 from typing import Any
 
 
+CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "runtime_profiles.json"
+RUNTIME_CONTRACT = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
+RUNTIME_PROFILES = RUNTIME_CONTRACT["profiles"]
+KNOWN_CAPABILITIES = set(RUNTIME_CONTRACT["capabilities"])
+
 REQUEST_MODES = {
     "report_only",
     "plan_only",
@@ -53,6 +58,14 @@ class PatternRule:
 
 
 EXECUTION_RULES = [
+    PatternRule(
+        "explicit_autoresearch_execution",
+        re.compile(
+            r"(start|launch|run|begin|启动|开展|进行).{0,40}"
+            r"(auto[- ]?research|research loop|experiment loop|自动科研|科研循环|实验迭代)",
+            re.I,
+        ),
+    ),
     PatternRule("explicit_please_implement", re.compile(r"\bPLEASE IMPLEMENT THIS PLAN\b", re.I)),
     PatternRule("explicit_implement_this_plan", re.compile(r"\bimplement this plan\b", re.I)),
     PatternRule("explicit_start_execution", re.compile(r"\b(start|begin|proceed with)\s+(execution|implementation)\b", re.I)),
@@ -74,6 +87,10 @@ EXECUTION_RULES = [
         ),
     ),
     PatternRule("explicit_chinese_execute", re.compile(r"(执行|实现|开始做|开始执行|继续执行)")),
+    PatternRule(
+        "explicit_chinese_research_execution",
+        re.compile(r"(请|帮我|需要你|我要你).{0,40}(启动|开展|进行).{0,20}(自动科研|科研|实验迭代)"),
+    ),
     PatternRule(
         "explicit_chinese_task_assignment",
         re.compile(
@@ -159,6 +176,21 @@ PLAN_ROUTE_RULES = [
     PatternRule("route_plan", re.compile(r"\b(plan|planning|design|architecture|proposal)\b", re.I)),
     PatternRule("route_chinese_plan", re.compile(r"(计划|规划|方案|架构|设计)")),
 ]
+RESEARCH_PROFILE_RULES = [
+    PatternRule(
+        "profile_autoresearch",
+        re.compile(r"(auto[- ]?research|scientific research|research loop|自动科研|科研循环)", re.I),
+    ),
+    PatternRule(
+        "profile_experiment_iteration",
+        re.compile(r"(iterate experiments?|experiment iteration|experiment loop|迭代实验|实验迭代|实验循环)", re.I),
+    ),
+    PatternRule(
+        "profile_research_evidence",
+        re.compile(r"(hypothesis|claim evidence|paper method|evidence synthesis|研究假设|论文方法|科研证据|证据综合)", re.I),
+    ),
+]
+EXPLICIT_PLANNING_PATTERN = re.compile(r"\b(plan|proposal|design|options|strategy|roadmap)\b|(计划|规划|只规划)", re.I)
 
 
 def utc_now() -> str:
@@ -173,9 +205,13 @@ def read_text_arg(value: str | None, file_value: str | None) -> str:
     return value or ""
 
 
-def load_json_arg(value: str | None) -> Any:
+def load_json_arg(value: Any) -> Any:
     if not value:
         return None
+    if isinstance(value, (dict, list)):
+        return value
+    if not isinstance(value, str):
+        raise ValueError("JSON input must be an object, array, path, or JSON string")
     path = Path(value)
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
@@ -203,10 +239,13 @@ def collect_matches(text: str, rules: list[PatternRule]) -> list[str]:
 def resolve_request_mode(text: str, has_active_goal: bool) -> tuple[str, list[str]]:
     matched: list[str] = []
     no_execution_matches = collect_matches(text, [PatternRule("explicit_no_execution", NO_EXECUTION_PATTERN)])
-    if not no_execution_matches:
-        execution_matches = collect_matches(text, EXECUTION_RULES)
-        if execution_matches:
-            return "execute_goal", execution_matches
+    if no_execution_matches:
+        if EXPLICIT_PLANNING_PATTERN.search(text):
+            return "plan_only", no_execution_matches + ["explicit_planning_with_no_execution"]
+        return "report_only", no_execution_matches
+    execution_matches = collect_matches(text, EXECUTION_RULES)
+    if execution_matches:
+        return "execute_goal", execution_matches
 
     for mode, rules in [
         ("report_only", REPORT_RULES),
@@ -318,6 +357,141 @@ def resolve_goal_action(
     return "create_goal", ["create_parent_goal"]
 
 
+def resolve_task_profile(text: str, request_mode: str) -> tuple[str | None, list[str]]:
+    if request_mode not in {"execute_goal", "active_goal_bind"}:
+        return None, ["non_execution_has_no_runtime_profile"]
+    research_matches = collect_matches(text, RESEARCH_PROFILE_RULES)
+    if research_matches:
+        return "scientific_autoresearch", research_matches
+    return "complex_engineering", ["default_complex_engineering_profile"]
+
+
+def validate_runtime_state(runtime_state: Any) -> dict[str, Any] | None:
+    if runtime_state is None:
+        return None
+    if not isinstance(runtime_state, dict):
+        raise ValueError("runtime state must be a JSON object")
+    goal = runtime_state.get("goal")
+    if not isinstance(goal, dict) or not goal.get("id"):
+        raise ValueError("runtime state goal must be an object with a non-empty id")
+    if goal.get("status") not in {"active", "paused", "complete"}:
+        raise ValueError(f"unknown goal status: {goal.get('status')}")
+    roadmap = runtime_state.get("roadmap")
+    if roadmap is not None:
+        if not isinstance(roadmap, dict):
+            raise ValueError("runtime state roadmap must be an object")
+        if not roadmap.get("goal_id"):
+            raise ValueError("runtime state roadmap requires goal_id")
+        allowed = {"draft", "pending_approval", "approved"}
+        if roadmap.get("status") not in allowed:
+            raise ValueError(f"unknown roadmap status: {roadmap.get('status')}")
+    accepted_milestone = runtime_state.get("accepted_milestone")
+    if accepted_milestone is not None:
+        if not isinstance(accepted_milestone, dict):
+            raise ValueError("runtime state accepted_milestone must be an object")
+        if not accepted_milestone.get("id") or not accepted_milestone.get("goal_id"):
+            raise ValueError("runtime state accepted_milestone requires id and goal_id")
+        if accepted_milestone.get("status") != "accepted":
+            raise ValueError("runtime state accepted_milestone must have status accepted")
+    active_work = runtime_state.get("active_work")
+    if active_work is not None and not isinstance(active_work, list):
+        raise ValueError("runtime state active_work must be an array")
+    for work in active_work or []:
+        if not isinstance(work, dict) or not work.get("goal_id") or not work.get("milestone_id"):
+            raise ValueError("each active_work entry requires goal_id and milestone_id")
+        if work.get("status") not in {"active", "blocked", "terminal"}:
+            raise ValueError(f"unknown active_work status: {work.get('status')}")
+    return runtime_state
+
+
+def authority_goal_ids(runtime_state: dict[str, Any] | None) -> set[str]:
+    if not runtime_state:
+        return set()
+    ids: set[str] = set()
+    goal = runtime_state.get("goal")
+    if isinstance(goal, dict) and goal.get("id"):
+        ids.add(str(goal["id"]))
+    for key in ("roadmap", "accepted_milestone"):
+        value = runtime_state.get(key)
+        if isinstance(value, dict) and value.get("goal_id"):
+            ids.add(str(value["goal_id"]))
+    for work in runtime_state.get("active_work") or []:
+        if isinstance(work, dict) and work.get("goal_id"):
+            ids.add(str(work["goal_id"]))
+    return ids
+
+
+def resolve_lifecycle(
+    request_mode: str,
+    has_active_goal: bool,
+    runtime_state: dict[str, Any] | None,
+) -> tuple[str, str, list[str]]:
+    if request_mode not in {"execute_goal", "active_goal_bind"}:
+        return "not_applicable", "not_required", ["non_execution_lifecycle"]
+    goal_ids = authority_goal_ids(runtime_state)
+    if len(goal_ids) > 1:
+        return "state_required", "state_required", ["conflicting_authority_goal_ids"]
+    if runtime_state:
+        goal = runtime_state.get("goal")
+        if isinstance(goal, dict) and goal.get("status") == "complete":
+            return "goal_complete", "closed", ["durable_goal_complete"]
+        if not has_active_goal:
+            return "resume_required", "handoff_required", ["durable_goal_requires_binding"]
+        roadmap = runtime_state.get("roadmap")
+        active_work = runtime_state.get("active_work") or []
+        if active_work:
+            return "resume_required", "authorized", ["durable_active_work_present"]
+        if not roadmap:
+            return "roadmap_required", "owner_approval_required", ["durable_roadmap_missing"]
+        if roadmap["status"] in {"draft", "pending_approval"}:
+            return "roadmap_pending_approval", "owner_approval_required", ["roadmap_not_approved"]
+        return "milestone_ready", "authorized", ["approved_roadmap_ready"]
+    if has_active_goal or request_mode == "active_goal_bind":
+        return "resume_required", "authorized", ["active_goal_requires_durable_resume"]
+    return "roadmap_required", "owner_approval_required", ["new_goal_requires_roadmap"]
+
+
+def normalize_capabilities(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        value = value.get("capabilities", [])
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise ValueError("capabilities must be an array of capability names")
+    return sorted(set(value))
+
+
+def resolve_provider(
+    task_profile: str | None,
+    capabilities: list[str],
+) -> tuple[str, list[str], list[str], list[str]]:
+    unknown = sorted(set(capabilities) - KNOWN_CAPABILITIES)
+    available = sorted(set(capabilities) & KNOWN_CAPABILITIES)
+    if task_profile is None:
+        return ("incompatible" if unknown else "standalone"), available, [], unknown
+    required = list(RUNTIME_PROFILES[task_profile]["required_capabilities"])
+    missing = sorted(set(required) - set(available))
+    if unknown:
+        status = "incompatible"
+    elif missing:
+        status = "degraded"
+    else:
+        status = "full_stack"
+    return status, available, missing, unknown
+
+
+def resolve_next_owner(lifecycle_state: str) -> str | None:
+    if lifecycle_state == "not_applicable":
+        return None
+    if lifecycle_state in {"roadmap_required", "roadmap_pending_approval"}:
+        return "goal-plan"
+    if lifecycle_state in {"resume_required", "state_required"}:
+        return "goal-context"
+    if lifecycle_state == "goal_complete":
+        return "goal-close"
+    return "goal-preflight"
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Resolve harness goal-entry behavior")
     parser.add_argument("--request")
@@ -326,6 +500,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--objective-file")
     parser.add_argument("--conversation-mode", choices=["plan", "default"], default="default")
     parser.add_argument("--active-goal-json")
+    parser.add_argument("--runtime-state-json")
+    parser.add_argument("--capabilities-json")
     parser.add_argument("--readiness-status", choices=sorted(READINESS_STATUSES), default="auto")
     parser.add_argument("--superpowers-available", choices=["true", "false", "unknown"], default="unknown")
     parser.add_argument("--direct-runtime-requested", action="store_true")
@@ -338,6 +514,8 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
     objective_text = read_text_arg(args.objective, args.objective_file)
     active_goal_json = load_json_arg(args.active_goal_json)
     has_active_goal = active_goal(active_goal_json)
+    runtime_state = validate_runtime_state(load_json_arg(getattr(args, "runtime_state_json", None)))
+    capabilities = normalize_capabilities(load_json_arg(getattr(args, "capabilities_json", None)))
 
     request_mode, request_matches = resolve_request_mode(request_text, has_active_goal)
     tier, dispatch_level, tier_matches = resolve_tier(request_text, request_mode)
@@ -356,6 +534,24 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
         has_active_goal,
         objective_length,
     )
+    task_profile, profile_matches = resolve_task_profile(request_text, request_mode)
+    lifecycle_state, authorization_state, lifecycle_matches = resolve_lifecycle(
+        request_mode,
+        has_active_goal,
+        runtime_state,
+    )
+    provider_status, available_capabilities, missing_capabilities, unknown_capabilities = resolve_provider(
+        task_profile,
+        capabilities,
+    )
+    if lifecycle_state == "state_required":
+        goal_action = "fallback_handoff"
+        goal_action_matches = ["runtime_state_conflict"]
+    elif "durable_goal_requires_binding" in lifecycle_matches:
+        goal_action = "fallback_handoff"
+        goal_action_matches = ["durable_goal_not_active"]
+    elif task_profile is not None and provider_status in {"degraded", "incompatible"}:
+        authorization_state = "handoff_required"
 
     if request_mode == "advisory_debate":
         harness_mode = "advisory_harness"
@@ -367,7 +563,15 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
         harness_mode = None
 
     run_dir_required = harness_mode == "goal_scoped_autonomous_harness" and tier != "quick_single_agent"
-    matched_rules = request_matches + tier_matches + route_matches + execution_matches + goal_action_matches
+    matched_rules = (
+        request_matches
+        + tier_matches
+        + route_matches
+        + execution_matches
+        + goal_action_matches
+        + profile_matches
+        + lifecycle_matches
+    )
     decision: dict[str, Any] = {
         "version": 1,
         "resolved_at": utc_now(),
@@ -386,6 +590,21 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
         "run_dir_required": run_dir_required,
         "matched_rules": matched_rules,
         "reason": "; ".join(matched_rules),
+        "decision_contract": {
+            "version": 2,
+            "task_profile": task_profile,
+            "lifecycle_state": lifecycle_state,
+            "authorization_state": authorization_state,
+            "provider_status": provider_status,
+            "verifier_requirement": "independent" if task_profile else "not_applicable",
+            "required_capabilities": list(RUNTIME_PROFILES[task_profile]["required_capabilities"])
+            if task_profile
+            else [],
+            "available_capabilities": available_capabilities,
+            "missing_capabilities": missing_capabilities,
+            "unknown_capabilities": unknown_capabilities,
+            "next_owner": resolve_next_owner(lifecycle_state),
+        },
     }
     if objective_length is not None:
         decision["create_goal_objective_length"] = objective_length

@@ -1,0 +1,27 @@
+[
+  {
+    "name": "english_engineering",
+    "request": "Please implement this cross-module engineering project with milestone acceptance",
+    "expected": {"request_mode": "execute_goal", "task_profile": "complex_engineering", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "chinese_engineering",
+    "request": "请实现这个跨模块工程，并按里程碑独立验收",
+    "expected": {"request_mode": "execute_goal", "task_profile": "complex_engineering", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "english_autoresearch",
+    "request": "Start autoresearch, analyze evidence, and iterate experiments",
+    "expected": {"request_mode": "execute_goal", "task_profile": "scientific_autoresearch", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "chinese_autoresearch",
+    "request": "请启动自动科研，分析证据并迭代实验",
+    "expected": {"request_mode": "execute_goal", "task_profile": "scientific_autoresearch", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "no_execution_veto",
+    "request": "请分析自动科研和实验实现方案，但不要执行",
+    "expected": {"task_profile": null, "lifecycle_state": "not_applicable"}
+  }
+]

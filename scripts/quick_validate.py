@@ -6,18 +6,26 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 
+sys.dont_write_bytecode = True
+
+
 REQUIRED_FILES = [
     "SKILL.md",
     "README.md",
     "scripts/resolve_goal_entry.py",
+    "scripts/validate_goal_runtime.py",
     "references/architecture.md",
+    "references/runtime_profiles.json",
     "agents/openai.yaml",
+    "tests/fixtures/engineering_runtime_trace.json",
+    "tests/fixtures/autoresearch_runtime_trace.json",
 ]
 ENTRY_MARKERS = [
     "$goal-entry",
@@ -29,6 +37,9 @@ ENTRY_MARKERS = [
     "goal-context",
     "goal-dispatch",
     "goal-close",
+    "decision_contract",
+    "Runtime Profile",
+    "Claim Firewall",
 ]
 
 
@@ -65,6 +76,19 @@ def validate(root: Path) -> list[str]:
     if "$goal-entry" not in openai_text:
         errors.append("agents/openai.yaml default_prompt must mention $goal-entry")
 
+    contract_text = read_text(root / "references" / "runtime_profiles.json", errors)
+    try:
+        runtime_contract = json.loads(contract_text)
+    except json.JSONDecodeError as exc:
+        errors.append(f"runtime profile contract is invalid JSON: {exc}")
+    else:
+        profiles = runtime_contract.get("profiles", {})
+        if set(profiles) != {"complex_engineering", "scientific_autoresearch"}:
+            errors.append(f"unexpected runtime profiles: {sorted(profiles)}")
+        capabilities = runtime_contract.get("capabilities", {})
+        if any(owner in {"subagent", "runtime_subagent"} for owner in capabilities.values()):
+            errors.append("runtime capability grants Goal authority to a subagent")
+
     router_path = root / "scripts" / "resolve_goal_entry.py"
     try:
         router = load_router(router_path)
@@ -85,6 +109,9 @@ def validate(root: Path) -> list[str]:
             errors.append(f"unexpected request_mode: {decision['request_mode']}")
         if decision["goal_action"] != "create_goal":
             errors.append(f"unexpected goal_action: {decision['goal_action']}")
+        contract = decision.get("decision_contract", {})
+        if contract.get("task_profile") != "complex_engineering":
+            errors.append(f"unexpected task_profile: {contract.get('task_profile')}")
     except Exception as exc:
         errors.append(f"resolver import/use failed: {exc}")
 
@@ -112,6 +139,37 @@ def validate(root: Path) -> list[str]:
         else:
             if payload.get("request_mode") != "execute_goal":
                 errors.append(f"resolver CLI unexpected request_mode: {payload.get('request_mode')}")
+
+    env = dict(os.environ)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    test_proc = subprocess.run(
+        [sys.executable, "-m", "unittest", "discover", "-s", str(root / "tests")],
+        cwd=root,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    if test_proc.returncode != 0:
+        errors.append(f"unit tests failed: {test_proc.stdout.strip()}")
+
+    runtime_proc = subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts" / "validate_goal_runtime.py"),
+            str(root / "tests" / "fixtures" / "engineering_runtime_trace.json"),
+            str(root / "tests" / "fixtures" / "autoresearch_runtime_trace.json"),
+        ],
+        cwd=root,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    if runtime_proc.returncode != 0:
+        errors.append(f"runtime trace validation failed: {runtime_proc.stdout.strip()}")
     return errors
 
 

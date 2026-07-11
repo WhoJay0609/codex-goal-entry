@@ -1,0 +1,15 @@
+{
+  "profile": "scientific_autoresearch",
+  "events": [
+    {"type": "goal_created", "goal_id": "research-goal"},
+    {"type": "roadmap_approved", "goal_id": "research-goal"},
+    {"type": "milestone_started", "milestone_id": "protocol", "dependencies": []},
+    {"type": "milestone_evidence", "milestone_id": "protocol", "implementer": "researcher", "artifacts": ["protocol.yaml"]},
+    {"type": "milestone_verdict", "milestone_id": "protocol", "verifier": "method-reviewer", "verdict": "passed"},
+    {"type": "experiment_result", "experiment_id": "exp-1", "integrity_status": "passed", "evidence_verdict": "supported", "result": "positive"},
+    {"type": "experiment_result", "experiment_id": "exp-2", "integrity_status": "passed", "evidence_verdict": "warning", "result": "negative"},
+    {"type": "claim_proposed", "claim_id": "claim-1", "experiment_id": "exp-1", "qualified": false},
+    {"type": "claim_proposed", "claim_id": "claim-2", "experiment_id": "exp-2", "qualified": true},
+    {"type": "goal_closed", "goal_id": "research-goal"}
+  ]
+}

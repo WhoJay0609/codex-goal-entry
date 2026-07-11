@@ -1,0 +1,19 @@
+{
+  "profile": "complex_engineering",
+  "events": [
+    {"type": "goal_created", "goal_id": "eng-goal"},
+    {"type": "roadmap_approved", "goal_id": "eng-goal"},
+    {"type": "milestone_started", "milestone_id": "m1", "dependencies": []},
+    {"type": "subagent_started", "milestone_id": "m1", "agent_id": "agent-1"},
+    {"type": "subagent_terminal", "agent_id": "agent-1", "outcome": "completion"},
+    {"type": "subagent_cleanup", "agent_id": "agent-1", "disposition": "closed"},
+    {"type": "milestone_evidence", "milestone_id": "m1", "implementer": "impl-1", "artifacts": ["contract.json"]},
+    {"type": "milestone_verdict", "milestone_id": "m1", "verifier": "verify-1", "verdict": "passed"},
+    {"type": "milestone_started", "milestone_id": "m2", "dependencies": ["m1"]},
+    {"type": "drift_detected", "branch": "integration"},
+    {"type": "drift_corrected", "branch": "integration", "basis": "m1"},
+    {"type": "milestone_evidence", "milestone_id": "m2", "implementer": "impl-2", "artifacts": ["integration.log"]},
+    {"type": "milestone_verdict", "milestone_id": "m2", "verifier": "verify-2", "verdict": "passed"},
+    {"type": "goal_closed", "goal_id": "eng-goal"}
+  ]
+}
