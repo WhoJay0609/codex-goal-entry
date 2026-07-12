@@ -1,109 +1,68 @@
 ---
 name: goal-entry
-description: Router-only public entry for Codex goal work. Use when a request must be classified before goal creation, active-goal binding, planning, dispatch, AGENTS.md context setup, backend run initialization, or closeout.
+description: Minimal router for explicit durable Goal creation or resume. Ordinary engineering execution belongs to Compound Engineering.
 ---
 
 # Goal Entry
 
-Invocation:
-`[$goal-entry](SKILL.md)`
+Invocation: `[$goal-entry](SKILL.md)`
 
-Use this as the primary public entry for goal-bound work. It is intentionally
-thin: resolve the request, then read the child skill that owns the needed
-protocol. Do not duplicate mode, tier, dispatch, objective, or closeout policy
-in this file.
+Use this skill only when the user explicitly asks to create, resume, or run an
+**explicit durable Goal**: a long-running, multi-day, autonomous, research, or
+otherwise lifecycle-managed outcome. It is not the default entry for coding.
 
-Legacy entry points remain installed for compatibility:
-
-- `harness-agent-for-goal`
-- `harness-agent`
-- `harness-agents-md-context`
-
-In a standalone installation, these legacy entries and the child `goal-*`
-skills are optional dependencies. The resolver in this repository can still be
-used by itself to classify requests and decide whether goal creation, active
-goal binding, planning, dispatch, or closeout should happen.
+For ordinary engineering work—implementation, debugging, review, testing,
+documentation, or a bounded plan—use the appropriate Compound Engineering
+workflow instead.
 
 ## Route
 
-1. Run or equivalently apply `scripts/resolve_goal_entry.py` before creating a
-   goal, binding an active goal, initializing run artifacts, or dispatching
-   subagents for non-trivial work.
-2. Treat the resolver output as the only source of truth for `request_mode`,
-   `goal_entry_tier`, `superpowers_dispatch_level`, `subagent_execution_mode`,
-   route intent, readiness state, goal action, typed `decision_contract`, and
-   authoritative additive `entry_session`.
-   The typed contract selects a Runtime Profile and reports lifecycle,
-   authorization, provider compatibility, verifier separation, and next owner.
-   The Entry Session runs a deterministic Semantic Pass followed by an
-   Authority Pass that may narrow, but never broaden or reinterpret, mutation
-   authority.
-3. For `execute_goal` or `active_goal_bind`, read
-   `goal-preflight`
-   and run `goal-preflight/scripts/run_goal_preflight.py` before goal
-   creation, active-goal binding, backend artifact initialization, edits, or
-   dispatch. Stop when `ready=false`.
-4. For planning and boundary questions, read
-   `goal-plan`.
-5. Before `create_goal`, read
-   `goal-objective`.
-6. Before repo-bound standard or full execution, read
-   `goal-context`.
-7. Before subagent/team dispatch, read
-   `goal-dispatch` and, when expert selection is needed, `goal-team`.
-8. For artifact-producing runs, read
-   `goal-backend`.
-9. Before final completion claims, read
-   `goal-trace` and `goal-close`.
-10. When maintaining the skill stack or generated metadata, read
-   `goal-metadata`.
+1. Run `scripts/resolve_goal_entry.py` before creating or resuming a Goal.
+   Its `request_mode` and `execution_destination` are the route decision.
+2. If `execution_destination=compound_engineering`, do not initialize Goal
+   state or read Goal-only inputs. Continue with Compound Engineering.
+3. If `execution_destination=goal_lifecycle`, run `goal-preflight` before
+   creating or binding a Goal. Stop when readiness is not passed.
+4. For a new Goal, use `goal-objective`; for a resume, use `goal-context` and
+   its verified cursor.
+5. Only after that gate may the external Goal lifecycle use `goal-plan`,
+   `goal-dispatch`, `goal-backend`, `goal-trace`, and `goal-close` as needed.
 
-## Runtime Profiles
+## What selects Goal mode
 
-- `complex_engineering` covers context, boundaries, implementation,
-  integration, validation, delivery, and closeout.
-- `scientific_autoresearch` covers research bootstrap, protocol lock,
-  experiment and synthesis loops, evidence review, Claim Firewall, and writing
-  handoff.
-- Both profiles use the Shared Goal Kernel contract in
-  `references/runtime_profiles.json`. This public router reports the contract;
-  external child owners perform roadmap, milestone, verification, reclamation,
-  and closeout actions.
-- Pass durable state with `--runtime-state-json` for resume decisions and a
-  capability manifest with `--capabilities-json` to distinguish full-stack,
-  degraded, standalone, and incompatible provider surfaces.
-- Treat caller durable state and capability declarations as discovery and
-  compatibility inputs only. Binding/resume requires a verified
-  `goal-context` cursor; phase execution requires a healthy, unexpired,
-  session-scoped attestation from the trusted `goal-preflight` adapter.
-- Composite requests compile explicit ordered clauses into one Goal phase
-  graph. Profiles are phase-scoped; `goal-plan` still owns milestones and the
-  approved roadmap.
+Goal mode requires one of these explicit signals:
 
-## Hard Rules
+- Create/start a Goal **and** state a durable outcome, such as long-running,
+  multi-day, continuous, autonomous, research loop, or their Chinese forms.
+- Explicitly resume or recover an existing Goal.
 
-- Do not create nested Codex goals.
-- Do not call `create_goal` before readiness is explicit.
-- Do not call `create_goal` with an objective longer than 4,000 characters.
-- Do not let subagents call `get_goal`, `create_goal`, or `update_goal`.
-- Do not assign `goal-*` or legacy harness protocol skills to runtime or
-  Superpowers subagent `allowed_skills`.
-- Do not bypass `resolve_goal_entry.py` with hand-written mode logic.
-- Do not bypass `goal-preflight` for `execute_goal` or `active_goal_bind`.
-- Do not mutate when the Semantic Pass is ambiguous, idempotency conflicts,
-  cursor revision is stale, Goal selection is unresolved, or the Authority
-  Pass denies Goal mutation.
-- Do not schedule a phase unless `phase_execution_allowed=true`; legacy
-  `provider_status=full_stack` is declaration coverage only.
-- Do not treat a declared capability or a passing conformance trace as proof
-  that an external provider performed real Goal mutations.
-- Do not accept a milestone without an independent verifier and cleanup
-  evidence, or promote a scientific claim through a blocked Claim Firewall.
+中文等价表达：`创建一个长期 Goal` / `启动一个科研循环 Goal`，或
+`继续这个 Goal` / `恢复这个 Goal`。普通“修复解析器并测试”仍属于 Compound
+Engineering。
+
+Execution verbs, research terms, an active Goal record, quoted text, or
+delegation flags alone do not select Goal mode. A request that says not to
+execute remains non-mutating.
+
+## Goal-only safeguards
+
+- Do not call Goal tools from subagents.
+- Do not create or bind a Goal before `goal-preflight` passes.
+- Do not create a Goal with an objective longer than 4,000 characters.
+- Do not use a caller-supplied record as resume authority; require the verified
+  `goal-context` cursor.
+- Do not schedule a phase unless the Entry Session's Authority Pass permits it.
+
+## Result contract
+
+Routine Compound results contain only the small routing envelope and omit
+`decision_contract` and `entry_session`. Explicit Goal results include the
+Goal lifecycle envelope, including Semantic Pass and Authority Pass evidence.
 
 ## Validation
 
 ```bash
 python3 scripts/quick_validate.py .
-python3 scripts/resolve_goal_entry.py --request 'PLEASE IMPLEMENT THIS PLAN' --readiness-status passed
-python3 scripts/validate_goal_runtime.py tests/fixtures/engineering_runtime_trace.json tests/fixtures/autoresearch_runtime_trace.json
+python3 scripts/resolve_goal_entry.py --request 'Please implement this plan with tests'
+python3 scripts/resolve_goal_entry.py --request 'Please create a long-running Goal to implement this plan with tests' --readiness-status passed
 ```

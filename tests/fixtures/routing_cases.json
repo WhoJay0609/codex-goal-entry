@@ -1,27 +1,57 @@
 [
   {
-    "name": "english_engineering",
+    "name": "ordinary_english_engineering",
     "request": "Please implement this cross-module engineering project with milestone acceptance",
-    "expected": {"request_mode": "execute_goal", "task_profile": "complex_engineering", "lifecycle_state": "roadmap_required"}
+    "expected": {"request_mode": "execute_compound", "execution_destination": "compound_engineering"}
   },
   {
-    "name": "chinese_engineering",
+    "name": "ordinary_chinese_engineering",
     "request": "请实现这个跨模块工程，并按里程碑独立验收",
-    "expected": {"request_mode": "execute_goal", "task_profile": "complex_engineering", "lifecycle_state": "roadmap_required"}
+    "expected": {"request_mode": "execute_compound", "execution_destination": "compound_engineering"}
   },
   {
-    "name": "english_autoresearch",
-    "request": "Start autoresearch, analyze evidence, and iterate experiments",
-    "expected": {"request_mode": "execute_goal", "task_profile": "scientific_autoresearch", "lifecycle_state": "roadmap_required"}
+    "name": "ordinary_english_imperative",
+    "request": "Fix the parser",
+    "expected": {"request_mode": "execute_compound", "execution_destination": "compound_engineering"}
   },
   {
-    "name": "chinese_autoresearch",
-    "request": "请启动自动科研，分析证据并迭代实验",
-    "expected": {"request_mode": "execute_goal", "task_profile": "scientific_autoresearch", "lifecycle_state": "roadmap_required"}
+    "name": "ordinary_chinese_imperative",
+    "request": "修复解析器并添加回归测试",
+    "expected": {"request_mode": "execute_compound", "execution_destination": "compound_engineering"}
+  },
+  {
+    "name": "explicit_english_engineering_goal",
+    "request": "Please create a long-running Goal to implement this cross-module engineering project with milestone acceptance",
+    "expected": {"request_mode": "execute_goal", "execution_destination": "goal_lifecycle", "task_profile": "complex_engineering", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "explicit_chinese_engineering_goal",
+    "request": "请创建一个长期 Goal，实现这个跨模块工程，并按里程碑独立验收",
+    "expected": {"request_mode": "execute_goal", "execution_destination": "goal_lifecycle", "task_profile": "complex_engineering", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "minimal_english_goal_creation",
+    "request": "Create a long-running Goal",
+    "expected": {"request_mode": "execute_goal", "execution_destination": "goal_lifecycle", "task_profile": "complex_engineering", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "minimal_chinese_goal_creation",
+    "request": "创建一个长期 Goal",
+    "expected": {"request_mode": "execute_goal", "execution_destination": "goal_lifecycle", "task_profile": "complex_engineering", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "explicit_english_autoresearch_goal",
+    "request": "Please launch a long-running Goal for autoresearch, evidence analysis, and experiment iteration",
+    "expected": {"request_mode": "execute_goal", "execution_destination": "goal_lifecycle", "task_profile": "scientific_autoresearch", "lifecycle_state": "roadmap_required"}
+  },
+  {
+    "name": "explicit_chinese_autoresearch_goal",
+    "request": "请创建一个长期 Goal，启动自动科研、分析证据并迭代实验",
+    "expected": {"request_mode": "execute_goal", "execution_destination": "goal_lifecycle", "task_profile": "scientific_autoresearch", "lifecycle_state": "roadmap_required"}
   },
   {
     "name": "no_execution_veto",
-    "request": "请分析自动科研和实验实现方案，但不要执行",
-    "expected": {"task_profile": null, "lifecycle_state": "not_applicable"}
+    "request": "请创建一个长期 Goal，分析自动科研和实验实现方案，但不要执行",
+    "expected": {"request_mode": "report_only", "execution_destination": null}
   }
 ]

@@ -1,5 +1,5 @@
 {
-  "contract_version": 1,
+  "contract_version": 2,
   "passes": ["semantic_pass", "authority_pass"],
   "semantic_states": ["resolved", "clarification_required", "unresolved_non_mutating"],
   "authority_states": [
@@ -20,9 +20,34 @@
   "trusted_attestation_issuers": ["goal-preflight"],
   "cursor_required_fields": ["issuer", "verification_status", "proof_ref", "goal_id", "revision", "state_source", "status", "issued_at", "conversation_correlation"],
   "attestation_required_fields": ["provider_id", "issuer", "verification_status", "proof_ref", "contract_version", "health", "issued_at", "expires_at", "capabilities"],
+  "goal_intent_policy": {
+    "version": 1,
+    "precedence": ["explicit_no_execution", "explicit_goal_resume", "explicit_durable_goal", "ordinary_execution", "non_execution"],
+    "marker_groups": {
+      "goal_operation": [
+        "\\b(create|start|launch|run|enter|open)\\b.{0,30}\\bgoal(?:\\s+mode)?\\b",
+        "(?:创建|建立|启动|开启|运行|进入).{0,10}(?:Goal|目标)(?:模式)?"
+      ],
+      "durable_outcome": [
+        "\\b(long[- ]?(?:running|horizon)|multi[- ]?day|continuous|autonomous|research loop|experiment loop)\\b",
+        "(?:长期|长周期|持续|自治|自动科研|科研循环|实验循环)"
+      ],
+      "goal_resume": [
+        "\\b(resume|continue|recover)\\s+(?:this\\s+|the\\s+|an?\\s+)?goal\\b",
+        "(?:继续|恢复).{0,10}(?:Goal|目标)(?:模式)?"
+      ]
+    }
+  },
+  "result_contract": {
+    "version": 1,
+    "execution_destination_field": "execution_destination",
+    "destinations": ["compound_engineering", "goal_lifecycle", null],
+    "compound_omits": ["decision_contract", "entry_session"],
+    "compound_delegation_allowed": false
+  },
   "legacy_projections": {
-    "top_level_version": 1,
-    "decision_contract_version": 2
+    "top_level_version": 2,
+    "decision_contract_version": 3
   },
   "invariants": {
     "mutation_requires_resolved_semantics": true,

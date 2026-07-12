@@ -37,8 +37,6 @@ def resolve(request: str):
         runtime_state_json=None,
         capabilities_json=None,
         readiness_status="passed",
-        superpowers_available="true",
-        direct_runtime_requested=False,
     ))
 
 
@@ -47,11 +45,11 @@ class EntrySessionContractTests(unittest.TestCase):
         self.assertEqual(["semantic_pass", "authority_pass"], CONTRACT["passes"])
 
     def test_contract_keeps_legacy_projection_versions(self) -> None:
-        self.assertEqual(1, CONTRACT["legacy_projections"]["top_level_version"])
-        self.assertEqual(2, CONTRACT["legacy_projections"]["decision_contract_version"])
-        decision = resolve("PLEASE IMPLEMENT THIS PLAN with tests")
-        self.assertEqual(1, decision["version"])
-        self.assertEqual(2, decision["decision_contract"]["version"])
+        self.assertEqual(2, CONTRACT["legacy_projections"]["top_level_version"])
+        self.assertEqual(3, CONTRACT["legacy_projections"]["decision_contract_version"])
+        decision = resolve("Please create a long-running Goal to implement this plan with tests")
+        self.assertEqual(2, decision["version"])
+        self.assertEqual(3, decision["decision_contract"]["version"])
 
     def test_contract_requires_external_authority_for_mutation(self) -> None:
         invariants = CONTRACT["invariants"]
@@ -62,13 +60,34 @@ class EntrySessionContractTests(unittest.TestCase):
     def test_each_acceptance_example_has_fixture_evidence(self) -> None:
         cases = json.loads((ROOT / "tests" / "fixtures" / "entry_session_cases.json").read_text(encoding="utf-8"))
         self.assertEqual({f"AE{index}" for index in range(1, 11)}, {case["ae_id"] for case in cases})
+        for case in cases:
+            with self.subTest(case=case["ae_id"]):
+                decision = resolve(case["request"])
+                if "expected_destination" in case:
+                    self.assertEqual(case["expected_destination"], decision["execution_destination"])
+                    self.assertNotIn("entry_session", decision)
+                else:
+                    session = decision["entry_session"]
+                    self.assertEqual(case["expected_semantic"], session["semantic_pass"]["status"])
+                    self.assertEqual(case["expected_authority"], session["authority_pass"]["status"])
+
+    def test_goal_intent_precedence_is_enforced_by_the_resolver(self) -> None:
+        self.assertEqual(tuple(CONTRACT["goal_intent_policy"]["precedence"]), RESOLVER.GOAL_INTENT_PRECEDENCE)
+        self.assertEqual(RESOLVER.EXPECTED_GOAL_INTENT_PRECEDENCE, RESOLVER.GOAL_INTENT_PRECEDENCE)
 
     def test_resolver_emits_additive_entry_session_envelope(self) -> None:
-        decision = resolve("PLEASE IMPLEMENT THIS PLAN with tests")
+        decision = resolve("Please create a long-running Goal to implement this plan with tests")
         session = decision["entry_session"]
-        self.assertEqual(1, session["version"])
+        self.assertEqual(2, session["version"])
         self.assertIn(session["semantic_pass"]["status"], CONTRACT["semantic_states"])
         self.assertIn(session["authority_pass"]["status"], CONTRACT["authority_states"])
+
+    def test_compound_result_omits_goal_only_envelopes(self) -> None:
+        decision = resolve("Please implement this plan with tests")
+        self.assertEqual("execute_compound", decision["request_mode"])
+        self.assertEqual("compound_engineering", decision["execution_destination"])
+        self.assertNotIn("decision_contract", decision)
+        self.assertNotIn("entry_session", decision)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@
       "issuer": "goal-preflight",
       "verification_status": "verified",
       "proof_ref": "proof:goal-stack:1",
-      "contract_version": 1,
+      "contract_version": 2,
       "health": "healthy",
       "issued_at": "2020-01-01T00:00:00Z",
       "expires_at": "2099-01-01T00:00:00Z",

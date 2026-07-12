@@ -1,59 +1,43 @@
-# Goal Skill Architecture
+# Goal Entry Architecture
 
-`goal-entry` is the public router. It owns interpretation and authority-gate
-contracts, but no durable state, provider runtime, scheduling, or detailed
-execution protocol.
+`goal-entry` is a narrow boundary between ordinary Compound Engineering work
+and an explicit durable Goal lifecycle.
 
-Primary responsibility split:
+## Ownership
 
-- `goal-entry`: resolve request mode, tier, dispatch level, execution mode,
-  Runtime Profile, lifecycle, authorization, provider status, and goal action.
-- `goal-preflight`: compose the resolver and context checks into a narrow
-  execution gate before goal creation, active-goal binding, artifact
-  initialization, edits, or dispatch.
-- `goal-plan`: plan-only and copy-only handoff contract.
-- `goal-objective`: compact `create_goal(objective=...)` contract.
-- `goal-context`: AGENTS.md hierarchy, managed Path Index, and `doc/` workspace.
-- `goal-dispatch`: Superpowers-first dispatch contract and fallback recording.
-- `goal-team`: expert-team selection and maintenance policy.
-- `goal-backend`: compatibility facade for the existing backend scripts under
-  `harness-agent`.
-- `goal-trace`: artifact and trace validation.
-- `goal-close`: cleanup, goal-sync, and final completion contract.
-- `goal-metadata`: generated inventory, expert library, and health report
-  refresh order.
+| Surface | Owner |
+| --- | --- |
+| Normal implementation, debugging, tests, review, bounded plans | Compound Engineering |
+| Detecting an explicit durable Goal or explicit Goal resume | `goal-entry` |
+| Readiness before Goal creation or binding | `goal-preflight` |
+| Goal objective and verified resume cursor | `goal-objective`, `goal-context` |
+| Goal roadmap, dispatch, backend artifacts, trace, closeout | External `goal-*` child skills |
 
-`references/runtime_profiles.json` is the portable Shared Goal Kernel contract.
-It declares milestone gates, independent verification, recovery, reclamation,
-state precedence, and Claim Firewall outcomes. It is policy data, not a second
-scheduler. `scripts/validate_goal_runtime.py` only replays immutable traces for
-conformance and never calls Goal tools, controls processes, or mutates runtime
-state.
+The resolver first selects `execution_destination`:
 
-`references/entry_session_contract.json` defines one risk-adaptive Two-Pass
-Entry Session. The Semantic Pass reads only the authoritative instruction lane,
-locks ambiguity handling, and compiles explicit ordered clauses into one
-phase-aware Goal intent. The Authority Pass consumes that immutable result and
-can only narrow it through idempotency, canonical cursor, revision, Goal
-selection, and active-phase provider-attestation checks.
+- `compound_engineering`: return the minimal routing envelope. Do not parse or
+  emit Goal lifecycle state.
+- `goal_lifecycle`: emit the Goal-only `decision_contract` and `entry_session`.
+- `null`: no execution route.
 
-Canonical cursors and provider attestations remain externally issued evidence.
-The resolver validates typed issuer, scope, status, revision or capability,
-health, validity window, and proof-reference fields; it does not perform the
-external verification or claim that a real mutation occurred. Missing provider
-evidence may leave Goal creation and roadmap planning available while blocking
-the affected phase.
+This order is deliberate: an active Goal record never turns an ordinary task
+into a Goal task. The user must explicitly request a durable Goal outcome or a
+Goal resume.
 
-The resolver's version-1 top-level fields remain the compatibility projection.
-The additive `decision_contract` version 2 exposes profile, lifecycle,
-authorization, provider gaps, verifier requirements, and the next external
-owner. Provider status is orthogonal to lifecycle: a missing provider changes
-the handoff posture without inventing a new progress state.
-Legacy `provider_status=full_stack` describes declared capability coverage only.
-The authoritative execution signal is
-`entry_session.authority_pass.phase_execution_allowed`.
+## Goal lifecycle contract
 
-Legacy `harness-*` skills remain installed for old prompts and generated
-references. New policy should be added to the appropriate `goal-*` skill first;
-legacy wrappers should only point back to the new owner or the compatibility
-backend surface.
+Only the Goal route evaluates runtime profiles, durable state, capability
+declarations, idempotency, cursor selection, and provider attestations.
+`entry_session_contract.json` defines the two ordered passes:
+
+1. Semantic Pass identifies the authoritative instruction, ambiguity, and any
+   phase graph.
+2. Authority Pass can only narrow that result using verified cursor and
+   provider evidence.
+
+The resolver validates the shape of external evidence; it does not claim the
+external provider performed a real mutation. Goal tools remain main-agent only;
+subagents cannot create, update, or close Goals.
+
+`runtime_profiles.json` remains policy data for explicit Goal workflows. Its
+trace validator is read-only and never schedules work or mutates state.

@@ -2,6 +2,29 @@
 
 本项目从 `v0.1.0` 开始维护语义化版本。版本号遵循 `MAJOR.MINOR.PATCH`：不兼容的公开契约变化提升 MAJOR，向后兼容的新能力提升 MINOR，向后兼容的修复提升 PATCH。
 
+## [1.0.0] - 2026-07-12
+
+### Changed
+
+- 普通工程执行现在默认输出 `execute_compound` 与
+  `execution_destination=compound_engineering`，由 Compound Engineering 接管。
+- 只有明确创建长期/持续/自治 Goal，或明确恢复已有 Goal，才会进入 Goal lifecycle。
+- 普通路径不再解析 Goal-only 状态，也不再输出 `decision_contract` 或
+  `entry_session`；这两类 envelope 只属于 explicit Goal 路径。
+- `entry_session_contract` 升级到 version 2，加入可版本化的 Goal intent policy
+  与小结果合同；resolver 顶层 version 升至 2，Goal `decision_contract` 升至 3。
+
+### Removed
+
+- 移除 Superpowers tier、dispatch level、subagent execution mode 及其 CLI 参数。
+- 移除“实现/研究/active Goal 自动进入 Goal”这一隐式路由行为。
+
+### Migration
+
+- 需要长期 Goal 时，显式说明 “创建一个长期 Goal” 或 “继续这个 Goal”。
+- 原先依赖 `goal_entry_tier`、`superpowers_dispatch_level`、
+  `subagent_execution_mode` 的调用方应改读 `execution_destination`。
+
 ## [0.2.0] - 2026-07-11
 
 ### Added
@@ -37,3 +60,4 @@
 
 [0.1.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v0.1.0
 [0.2.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v0.2.0
+[1.0.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v1.0.0

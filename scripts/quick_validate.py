@@ -38,16 +38,14 @@ REQUIRED_FILES = [
 ENTRY_MARKERS = [
     "$goal-entry",
     "resolve_goal_entry.py",
-    "only source of truth",
-    "4,000 characters",
+    "Compound Engineering",
+    "explicit durable Goal",
     "goal-preflight",
     "goal-objective",
     "goal-context",
     "goal-dispatch",
     "goal-close",
-    "decision_contract",
-    "Runtime Profile",
-    "Claim Firewall",
+    "execution_destination",
     "entry_session",
     "Semantic Pass",
     "Authority Pass",
@@ -110,23 +108,41 @@ def validate(root: Path) -> list[str]:
     router_path = root / "scripts" / "resolve_goal_entry.py"
     try:
         router = load_router(router_path)
-        decision = router.resolve(
+        compound = router.resolve(
             SimpleNamespace(
                 request="PLEASE IMPLEMENT THIS PLAN with tests",
                 request_file=None,
                 active_goal_json=None,
                 readiness_status="passed",
-                superpowers_available="true",
-                direct_runtime_requested=False,
+                objective=None,
+                objective_file=None,
+                conversation_mode="default",
+            )
+        )
+        if compound["request_mode"] != "execute_compound":
+            errors.append(f"ordinary request did not use Compound Engineering: {compound['request_mode']}")
+        if compound.get("execution_destination") != "compound_engineering":
+            errors.append("ordinary request did not report the Compound Engineering destination")
+        if "decision_contract" in compound or "entry_session" in compound:
+            errors.append("ordinary request emitted Goal-only envelopes")
+
+        decision = router.resolve(
+            SimpleNamespace(
+                request="Create a long-running Goal",
+                request_file=None,
+                active_goal_json=None,
+                readiness_status="passed",
                 objective=None,
                 objective_file=None,
                 conversation_mode="default",
             )
         )
         if decision["request_mode"] != "execute_goal":
-            errors.append(f"unexpected request_mode: {decision['request_mode']}")
+            errors.append(f"explicit Goal request did not enter Goal lifecycle: {decision['request_mode']}")
+        if decision.get("execution_destination") != "goal_lifecycle":
+            errors.append("explicit Goal request did not report the Goal lifecycle destination")
         if decision["goal_action"] != "create_goal":
-            errors.append(f"unexpected goal_action: {decision['goal_action']}")
+            errors.append(f"unexpected explicit Goal action: {decision['goal_action']}")
         contract = decision.get("decision_contract", {})
         if contract.get("task_profile") != "complex_engineering":
             errors.append(f"unexpected task_profile: {contract.get('task_profile')}")
@@ -160,30 +176,39 @@ def validate(root: Path) -> list[str]:
         except json.JSONDecodeError as exc:
             errors.append(f"resolver CLI did not emit JSON: {exc}")
         else:
-            if payload.get("request_mode") != "execute_goal":
-                errors.append(f"resolver CLI unexpected request_mode: {payload.get('request_mode')}")
+            if payload.get("request_mode") != "execute_compound":
+                errors.append(f"resolver CLI did not use Compound Engineering: {payload.get('request_mode')}")
+            if payload.get("execution_destination") != "compound_engineering":
+                errors.append("resolver CLI did not report the Compound Engineering destination")
+            if "entry_session" in payload or "decision_contract" in payload:
+                errors.append("resolver CLI emitted Goal-only envelopes for ordinary execution")
 
-    preview_proc = subprocess.run(
-        [sys.executable, str(router_path), "--request", "先调研，再实现，最后跑实验，但不要执行"],
+    goal_proc = subprocess.run(
+        [
+            sys.executable,
+            str(router_path),
+            "--request",
+            "Create a long-running Goal",
+            "--readiness-status",
+            "passed",
+        ],
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         check=False,
     )
-    if preview_proc.returncode != 0:
-        errors.append(f"composite preview CLI failed: {preview_proc.stdout.strip()}")
+    if goal_proc.returncode != 0:
+        errors.append(f"explicit Goal CLI failed: {goal_proc.stdout.strip()}")
     else:
         try:
-            preview = json.loads(preview_proc.stdout)
+            goal_payload = json.loads(goal_proc.stdout)
         except json.JSONDecodeError as exc:
-            errors.append(f"composite preview did not emit JSON: {exc}")
+            errors.append(f"explicit Goal CLI did not emit JSON: {exc}")
         else:
-            semantic = preview.get("entry_session", {}).get("semantic_pass", {})
-            authority = preview.get("entry_session", {}).get("authority_pass", {})
-            if not semantic.get("preview_only") or len(semantic.get("phase_graph", [])) < 2:
-                errors.append("composite preview did not preserve the phase graph")
-            if authority.get("status") != "not_required" or preview.get("goal_action") != "none":
-                errors.append("composite preview activated mutation authority")
+            if goal_payload.get("request_mode") != "execute_goal":
+                errors.append("explicit Goal CLI did not enter Goal lifecycle")
+            if "entry_session" not in goal_payload or "decision_contract" not in goal_payload:
+                errors.append("explicit Goal CLI omitted Goal lifecycle envelopes")
 
     env = dict(os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"

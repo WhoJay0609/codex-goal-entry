@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Resolve harness-agent-for-goal request mode, tier, and dispatch route."""
+"""Route ordinary execution to Compound Engineering and explicit durable work to Goal."""
 
 from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import lru_cache
 import hashlib
 import json
 import re
@@ -14,36 +15,42 @@ from pathlib import Path
 from typing import Any
 
 
-CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "runtime_profiles.json"
-RUNTIME_CONTRACT = json.loads(CONTRACT_PATH.read_text(encoding="utf-8"))
 ENTRY_CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "entry_session_contract.json"
 ENTRY_CONTRACT = json.loads(ENTRY_CONTRACT_PATH.read_text(encoding="utf-8"))
-RUNTIME_PROFILES = RUNTIME_CONTRACT["profiles"]
-KNOWN_CAPABILITIES = set(RUNTIME_CONTRACT["capabilities"])
+GOAL_INTENT_POLICY = ENTRY_CONTRACT["goal_intent_policy"]
+GOAL_INTENT_PRECEDENCE = tuple(GOAL_INTENT_POLICY["precedence"])
+EXPECTED_GOAL_INTENT_PRECEDENCE = (
+    "explicit_no_execution",
+    "explicit_goal_resume",
+    "explicit_durable_goal",
+    "ordinary_execution",
+    "non_execution",
+)
+if GOAL_INTENT_PRECEDENCE != EXPECTED_GOAL_INTENT_PRECEDENCE:
+    raise ValueError("goal intent policy precedence does not match resolver semantics")
+RUNTIME_CONTRACT_PATH = Path(__file__).resolve().parents[1] / "references" / "runtime_profiles.json"
+
+
+@lru_cache(maxsize=1)
+def runtime_contract() -> dict[str, Any]:
+    return json.loads(RUNTIME_CONTRACT_PATH.read_text(encoding="utf-8"))
+
+
+def runtime_profiles() -> dict[str, Any]:
+    return runtime_contract()["profiles"]
+
+
+def known_capabilities() -> set[str]:
+    return set(runtime_contract()["capabilities"])
 
 REQUEST_MODES = {
     "report_only",
     "plan_only",
     "copy_only_handoff",
     "advisory_debate",
+    "execute_compound",
     "execute_goal",
     "active_goal_bind",
-}
-GOAL_ENTRY_TIERS = {
-    "quick_single_agent",
-    "standard_superpowers",
-    "full_autonomous",
-}
-SUPERPOWERS_DISPATCH_LEVELS = {
-    "intent_only",
-    "minimal_dispatch",
-    "full_dispatch",
-}
-SUBAGENT_EXECUTION_MODES = {
-    "single_agent_exception",
-    "superpowers_subagents",
-    "runtime_subagents",
-    "inline_expert_memos",
 }
 READINESS_STATUSES = {
     "auto",
@@ -74,6 +81,10 @@ EXECUTION_RULES = [
     PatternRule("explicit_start_execution", re.compile(r"\b(start|begin|proceed with)\s+(execution|implementation)\b", re.I)),
     PatternRule("explicit_do_it", re.compile(r"\bdo it\b", re.I)),
     PatternRule(
+        "explicit_english_imperative",
+        re.compile(r"^\s*(fix|update|add|remove|build|ship|implement|create|generate|validate|test|run|refactor)\b", re.I),
+    ),
+    PatternRule(
         "explicit_english_task_assignment",
         re.compile(
             r"\b(please|can you|could you|help me|make|update|fix|add|remove|build|ship|implement|create)"
@@ -90,6 +101,10 @@ EXECUTION_RULES = [
         ),
     ),
     PatternRule("explicit_chinese_execute", re.compile(r"(执行|实现|开始做|开始执行|继续执行)")),
+    PatternRule(
+        "explicit_chinese_imperative",
+        re.compile(r"^\s*(修复|修改|改成|改为|实现|新增|添加|删除|更新|增强|整理|重构|迁移|接入|配置|安装|生成|创建|跑|运行|验证|测试|提交|推送|落地|完成|处理)"),
+    ),
     PatternRule(
         "explicit_chinese_research_execution",
         re.compile(r"(请|帮我|需要你|我要你).{0,40}(启动|开展|进行).{0,20}(自动科研|科研|实验迭代)"),
@@ -123,6 +138,16 @@ EXECUTION_RULES = [
         ),
     ),
 ]
+def intent_policy_rules(group: str) -> list[PatternRule]:
+    return [
+        PatternRule(f"{group}_{index}", re.compile(pattern, re.I))
+        for index, pattern in enumerate(GOAL_INTENT_POLICY["marker_groups"][group], start=1)
+    ]
+
+
+GOAL_OPERATION_RULES = intent_policy_rules("goal_operation")
+GOAL_DURABILITY_RULES = intent_policy_rules("durable_outcome")
+GOAL_RESUME_RULES = intent_policy_rules("goal_resume")
 NO_EXECUTION_PATTERN = re.compile(
     r"(不要执行|不执行|先不要执行|不要开始执行|不要实现|不实现|do not execute|do not implement|no execution)",
     re.I,
@@ -145,39 +170,6 @@ HANDOFF_RULES = [
 ADVISORY_RULES = [
     PatternRule("advisory_experts", re.compile(r"(组建专家讨论|组建专家团队讨论|专家评审|讨论方案|先讨论)")),
     PatternRule("advisory_terms", re.compile(r"\b(advisory debate|expert discussion|expert review)\b", re.I)),
-]
-ACTIVE_GOAL_RULES = [
-    PatternRule("active_continue", re.compile(r"\b(continue|resume|carry on)\b", re.I)),
-    PatternRule("active_chinese_continue", re.compile(r"(继续|恢复)")),
-]
-FULL_TIER_RULES = [
-    PatternRule("full_high_risk", re.compile(r"\b(high[- ]risk|long[- ]running|multi[- ]branch|cross[- ]module)\b", re.I)),
-    PatternRule("full_audit", re.compile(r"\b(independent audit|evidence[- ]sensitive|paper[- ]sensitive)\b", re.I)),
-    PatternRule("full_chinese", re.compile(r"(高风险|长时间|多分支|跨模块|论文|证据|独立审计|完整自治)")),
-]
-QUICK_TIER_RULES = [
-    PatternRule("quick_tiny", re.compile(r"\b(tiny|trivial|one[- ]command|simple read[- ]only|quick check)\b", re.I)),
-    PatternRule("quick_chinese", re.compile(r"(很小|简单检查|只读检查|一个命令)")),
-]
-DEBUG_ROUTE_RULES = [
-    PatternRule("route_debug", re.compile(r"\b(debug|bug|failure|regression|root cause|fix ci)\b", re.I)),
-    PatternRule("route_chinese_debug", re.compile(r"(调试|故障|失败|回归|根因|修复 CI)")),
-]
-TEST_ROUTE_RULES = [
-    PatternRule("route_test", re.compile(r"\b(test[- ]first|tdd|unit test|pytest|regression test)\b", re.I)),
-    PatternRule("route_chinese_test", re.compile(r"(测试优先|单元测试|回归测试)")),
-]
-REVIEW_ROUTE_RULES = [
-    PatternRule("route_review", re.compile(r"\b(code review|review|finish|release|closeout)\b", re.I)),
-    PatternRule("route_chinese_review", re.compile(r"(代码审查|收尾|发布|验收)")),
-]
-PARALLEL_ROUTE_RULES = [
-    PatternRule("route_parallel", re.compile(r"\b(parallel|independent branches|fan[- ]out|multi[- ]branch)\b", re.I)),
-    PatternRule("route_chinese_parallel", re.compile(r"(并行|独立分支|多分支|组建团队|子代理)")),
-]
-PLAN_ROUTE_RULES = [
-    PatternRule("route_plan", re.compile(r"\b(plan|planning|design|architecture|proposal)\b", re.I)),
-    PatternRule("route_chinese_plan", re.compile(r"(计划|规划|方案|架构|设计)")),
 ]
 RESEARCH_PROFILE_RULES = [
     PatternRule(
@@ -294,7 +286,7 @@ def compile_phase_graph(text: str) -> list[dict[str, Any]]:
             "phase_id": phase_id,
             "runtime_profile": profile,
             "outcome": item["outcome"],
-            "artifacts": list(RUNTIME_PROFILES[profile]["evidence_expectations"]),
+            "artifacts": list(runtime_profiles()[profile]["evidence_expectations"]),
             "dependencies": [] if index == 1 else [f"phase-{index - 1}"],
             "entry_condition": "session_authority_ready" if index == 1 else "dependencies_accepted",
             "exit_condition": "profile_evidence_satisfied",
@@ -457,19 +449,27 @@ def collect_matches(text: str, rules: list[PatternRule]) -> list[str]:
     return [rule.name for rule in rules if rule.pattern.search(text)]
 
 
-def resolve_request_mode(text: str, has_active_goal: bool) -> tuple[str, list[str]]:
-    matched: list[str] = []
+def resolve_request_mode(text: str) -> tuple[str, list[str]]:
     no_execution_matches = collect_matches(text, [PatternRule("explicit_no_execution", NO_EXECUTION_PATTERN)])
     if no_execution_matches:
         if EXPLICIT_PLANNING_PATTERN.search(text):
             return "plan_only", no_execution_matches + ["explicit_planning_with_no_execution"]
         return "report_only", no_execution_matches
-    active_matches = collect_matches(text, ACTIVE_GOAL_RULES)
-    if has_active_goal and active_matches:
-        return "active_goal_bind", active_matches
+
+    resume_matches = collect_matches(text, GOAL_RESUME_RULES)
+    if resume_matches:
+        return "active_goal_bind", resume_matches
+
+    goal_operation_matches = collect_matches(text, GOAL_OPERATION_RULES)
+    durable_goal_matches = collect_matches(text, GOAL_DURABILITY_RULES)
+    if goal_operation_matches and durable_goal_matches:
+        return "execute_goal", goal_operation_matches + durable_goal_matches
+    if goal_operation_matches:
+        return "plan_only", goal_operation_matches + ["explicit_goal_requires_durable_outcome"]
+
     execution_matches = collect_matches(text, EXECUTION_RULES)
     if execution_matches:
-        return "execute_goal", execution_matches
+        return "execute_compound", execution_matches + ["ordinary_execution_uses_compound"]
 
     for mode, rules in [
         ("report_only", REPORT_RULES),
@@ -481,78 +481,20 @@ def resolve_request_mode(text: str, has_active_goal: bool) -> tuple[str, list[st
         if mode_matches:
             return mode, mode_matches
 
-    if has_active_goal:
-        matched.append("active_goal_present_default_bind")
-        return "active_goal_bind", matched
     return "report_only", ["default_report_only"]
 
 
-def resolve_tier(text: str, request_mode: str) -> tuple[str, str, list[str]]:
-    if request_mode in {"report_only", "plan_only", "copy_only_handoff"}:
-        return "quick_single_agent", "intent_only", ["non_execution_intent_only"]
-    if request_mode == "advisory_debate":
-        return "standard_superpowers", "minimal_dispatch", ["advisory_lightweight_superpowers"]
-
-    full_matches = collect_matches(text, FULL_TIER_RULES)
-    if full_matches:
-        return "full_autonomous", "full_dispatch", full_matches
-    quick_matches = collect_matches(text, QUICK_TIER_RULES)
-    if quick_matches:
-        return "quick_single_agent", "intent_only", quick_matches
-    return "standard_superpowers", "minimal_dispatch", ["default_standard_superpowers"]
-
-
-def resolve_route(text: str, request_mode: str, tier: str) -> tuple[str | None, list[str]]:
-    if tier == "quick_single_agent":
-        return None, ["quick_has_no_superpowers_route"]
-    if request_mode == "advisory_debate":
-        return "writing-plans", ["advisory_uses_writing_plans"]
-
-    for route, rules in [
-        ("dispatching-parallel-agents", PARALLEL_ROUTE_RULES),
-        ("systematic-debugging", DEBUG_ROUTE_RULES),
-        ("test-driven-development", TEST_ROUTE_RULES),
-        ("requesting-code-review", REVIEW_ROUTE_RULES),
-        ("writing-plans", PLAN_ROUTE_RULES),
-    ]:
-        matches = collect_matches(text, rules)
-        if matches:
-            return route, matches
-    return "subagent-driven-development", ["default_implementation_route"]
-
-
-def resolve_execution_mode(
-    tier: str,
-    request_mode: str,
-    superpowers_available: str,
-    direct_runtime_requested: bool,
-) -> tuple[str, list[str], dict[str, str] | None]:
-    if tier == "quick_single_agent":
-        return "single_agent_exception", ["quick_single_agent_exception"], None
-    if direct_runtime_requested:
-        return (
-            "runtime_subagents",
-            ["explicit_direct_runtime_requested"],
-            {
-                "legacy_runtime_fallback_trigger": "user_requested_direct_runtime_team",
-                "legacy_runtime_fallback_reason": "user explicitly requested direct harness runtime teams",
-            },
-        )
-    if superpowers_available == "false":
-        return (
-            "inline_expert_memos",
-            ["superpowers_unavailable_inline_fallback"],
-            {
-                "subagent_runtime_blocked_category": "platform_unavailable",
-                "subagent_runtime_blocked_reason": "Superpowers is unavailable",
-            },
-        )
-    if request_mode == "advisory_debate":
-        return "superpowers_subagents", ["advisory_superpowers_subagents"], None
-    return "superpowers_subagents", ["standard_superpowers_subagents"], None
+def resolve_execution_destination(request_mode: str) -> str | None:
+    if request_mode == "execute_compound":
+        return "compound_engineering"
+    if request_mode in {"execute_goal", "active_goal_bind"}:
+        return "goal_lifecycle"
+    return None
 
 
 def normalize_readiness(readiness_status: str, request_mode: str) -> str:
+    if readiness_status not in READINESS_STATUSES:
+        raise ValueError(f"unsupported readiness status: {readiness_status}")
     if readiness_status != "auto":
         return readiness_status
     if request_mode in {"execute_goal", "active_goal_bind"}:
@@ -685,11 +627,12 @@ def resolve_provider(
     task_profile: str | None,
     capabilities: list[str],
 ) -> tuple[str, list[str], list[str], list[str]]:
-    unknown = sorted(set(capabilities) - KNOWN_CAPABILITIES)
-    available = sorted(set(capabilities) & KNOWN_CAPABILITIES)
+    capabilities_known = known_capabilities()
+    unknown = sorted(set(capabilities) - capabilities_known)
+    available = sorted(set(capabilities) & capabilities_known)
     if task_profile is None:
         return ("incompatible" if unknown else "standalone"), available, [], unknown
-    required = list(RUNTIME_PROFILES[task_profile]["required_capabilities"])
+    required = list(runtime_profiles()[task_profile]["required_capabilities"])
     missing = sorted(set(required) - set(available))
     if unknown:
         status = "incompatible"
@@ -732,16 +675,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--conversation-correlation")
     parser.add_argument("--provider-attestations-json")
     parser.add_argument("--active-phase-id")
-    parser.add_argument("--readiness-status", choices=sorted(READINESS_STATUSES), default="auto")
-    parser.add_argument("--superpowers-available", choices=["true", "false", "unknown"], default="unknown")
-    parser.add_argument("--direct-runtime-requested", action="store_true")
+    parser.add_argument("--readiness-status", default="auto")
     parser.add_argument("--json", action="store_true", help="accepted for compatibility; output is always JSON")
     return parser.parse_args(argv)
 
 
 def resolve(args: argparse.Namespace) -> dict[str, Any]:
     request_text = read_text_arg(args.request, args.request_file)
-    objective_text = read_text_arg(args.objective, args.objective_file)
     request_parts = normalize_request_parts(
         request_text,
         load_json_arg(getattr(args, "request_parts_json", None)),
@@ -749,22 +689,31 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
     clarification = load_json_arg(getattr(args, "clarification_json", None))
     authoritative_instruction = str(request_parts["instruction"])
     semantic_instruction = str((clarification or {}).get("instruction", authoritative_instruction))
-    active_goal_json = load_json_arg(args.active_goal_json)
+    request_mode, request_matches = resolve_request_mode(authoritative_instruction)
+    execution_destination = resolve_execution_destination(request_mode)
+
+    if request_mode not in {"execute_goal", "active_goal_bind"}:
+        return {
+            "version": 2,
+            "resolved_at": utc_now(),
+            "conversation_mode": getattr(args, "conversation_mode", "default"),
+            "request_mode": request_mode,
+            "execution_destination": execution_destination,
+            "goal_action": "none",
+            "delegation_allowed": False,
+            "readiness_gate": {"required": False, "status": "not_required"},
+            "matched_rules": request_matches,
+            "reason": "; ".join(request_matches),
+        }
+
+    objective_text = read_text_arg(args.objective, args.objective_file)
+    active_goal_json = load_json_arg(getattr(args, "active_goal_json", None))
     goal_cursor_input = getattr(args, "goal_cursor_json", None)
     active_goals_input = getattr(args, "active_goals_json", None)
     has_active_goal = active_goal(active_goal_json) or bool(goal_cursor_input) or bool(active_goals_input)
     runtime_state = validate_runtime_state(load_json_arg(getattr(args, "runtime_state_json", None)))
     capabilities = normalize_capabilities(load_json_arg(getattr(args, "capabilities_json", None)))
 
-    request_mode, request_matches = resolve_request_mode(semantic_instruction, has_active_goal)
-    tier, dispatch_level, tier_matches = resolve_tier(semantic_instruction, request_mode)
-    route, route_matches = resolve_route(semantic_instruction, request_mode, tier)
-    execution_mode, execution_matches, fallback = resolve_execution_mode(
-        tier,
-        request_mode,
-        args.superpowers_available,
-        args.direct_runtime_requested,
-    )
     readiness_status = normalize_readiness(args.readiness_status, request_mode)
     objective_length = len(objective_text) if objective_text else None
     goal_action, goal_action_matches = resolve_goal_action(
@@ -832,7 +781,7 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
     active_phase = next((phase for phase in phase_graph if phase["phase_id"] == active_phase_id), None)
     invalid_active_phase = bool(explicit_active_phase_id and active_phase is None)
     required_attested = (
-        list(RUNTIME_PROFILES[active_phase["runtime_profile"]]["required_capabilities"])
+        list(runtime_profiles()[active_phase["runtime_profile"]]["required_capabilities"])
         if semantic_pass["mutation_candidate"] and active_phase
         else []
     )
@@ -907,51 +856,33 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
         goal_action_matches = ["entry_session_authority_blocked"]
         authorization_state = "handoff_required"
 
-    if request_mode == "advisory_debate":
-        harness_mode = "advisory_harness"
-    elif tier == "quick_single_agent":
-        harness_mode = "single_agent_exception"
-    elif request_mode in {"execute_goal", "active_goal_bind"}:
-        harness_mode = "goal_scoped_autonomous_harness"
-    else:
-        harness_mode = None
-
-    run_dir_required = harness_mode == "goal_scoped_autonomous_harness" and tier != "quick_single_agent"
     matched_rules = (
         request_matches
-        + tier_matches
-        + route_matches
-        + execution_matches
         + goal_action_matches
         + profile_matches
         + lifecycle_matches
     )
     decision: dict[str, Any] = {
-        "version": 1,
+        "version": 2,
         "resolved_at": utc_now(),
-        "conversation_mode": args.conversation_mode,
+        "conversation_mode": getattr(args, "conversation_mode", "default"),
         "request_mode": request_mode,
-        "goal_entry_tier": tier,
-        "superpowers_dispatch_level": dispatch_level,
-        "subagent_execution_mode": execution_mode,
-        "harness_mode": harness_mode,
-        "superpowers_route": route,
+        "execution_destination": execution_destination,
         "goal_action": goal_action,
         "readiness_gate": {
-            "required": request_mode in {"execute_goal", "active_goal_bind"},
+            "required": True,
             "status": readiness_status,
         },
-        "run_dir_required": run_dir_required,
         "matched_rules": matched_rules,
         "reason": "; ".join(matched_rules),
         "decision_contract": {
-            "version": 2,
+            "version": 3,
             "task_profile": task_profile,
             "lifecycle_state": lifecycle_state,
             "authorization_state": authorization_state,
             "provider_status": provider_status,
             "verifier_requirement": "independent" if task_profile else "not_applicable",
-            "required_capabilities": list(RUNTIME_PROFILES[task_profile]["required_capabilities"])
+            "required_capabilities": list(runtime_profiles()[task_profile]["required_capabilities"])
             if task_profile
             else [],
             "available_capabilities": available_capabilities,
@@ -975,8 +906,6 @@ def resolve(args: argparse.Namespace) -> dict[str, Any]:
     }
     if objective_length is not None:
         decision["create_goal_objective_length"] = objective_length
-    if fallback:
-        decision.update(fallback)
     return decision
 
 

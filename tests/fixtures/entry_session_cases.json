@@ -3,13 +3,12 @@
     "ae_id": "AE1",
     "name": "simple_read_only",
     "request": "请分析这个方案，不要执行",
-    "expected_semantic": "resolved",
-    "expected_authority": "not_required"
+    "expected_destination": null
   },
   {
     "ae_id": "AE2",
     "name": "ambiguous_mutation",
-    "request": "review or implement this plan",
+    "request": "Please create a long-running Goal to review or implement this plan",
     "expected_semantic": "clarification_required",
     "expected_authority": "blocked"
   },
@@ -17,55 +16,54 @@
     "ae_id": "AE3",
     "name": "composite_preview",
     "request": "先调研，再实现，最后跑实验，但不要执行",
-    "expected_semantic": "resolved",
-    "expected_authority": "not_required"
+    "expected_destination": null
   },
   {
     "ae_id": "AE4",
     "name": "ordered_profile_graph",
-    "request": "先调研，然后实现，最后迭代实验",
+    "request": "请创建一个长期 Goal，先调研，然后实现，最后迭代实验",
     "expected_semantic": "resolved",
     "expected_authority": "planning_only"
   },
   {
     "ae_id": "AE5",
-    "name": "stale_cursor_revision",
-    "request": "继续执行",
+    "name": "resume_without_verified_cursor",
+    "request": "请继续这个 Goal，继续执行",
     "expected_semantic": "resolved",
     "expected_authority": "blocked"
   },
   {
     "ae_id": "AE6",
     "name": "idempotent_replay",
-    "request": "请实现解析器",
+    "request": "请创建一个长期 Goal，实现解析器",
     "expected_semantic": "resolved",
     "expected_authority": "planning_only"
   },
   {
     "ae_id": "AE7",
-    "name": "multiple_goal_candidates",
-    "request": "继续执行",
+    "name": "resume_requires_goal_selection_evidence",
+    "request": "请继续这个 Goal，继续执行",
     "expected_semantic": "resolved",
-    "expected_authority": "goal_selection_required"
+    "expected_authority": "blocked"
   },
   {
     "ae_id": "AE8",
     "name": "later_phase_capability_missing",
-    "request": "先实现，然后启动自动科研",
+    "request": "请创建一个长期 Goal，先实现，然后启动自动科研",
     "expected_semantic": "resolved",
     "expected_authority": "planning_only"
   },
   {
     "ae_id": "AE9",
-    "name": "provider_invalidation_checkpoint",
-    "request": "继续执行当前阶段",
+    "name": "resume_without_provider_evidence",
+    "request": "请继续这个 Goal，继续执行当前阶段",
     "expected_semantic": "resolved",
     "expected_authority": "blocked"
   },
   {
     "ae_id": "AE10",
     "name": "standalone_no_mutation_claim",
-    "request": "PLEASE IMPLEMENT THIS PLAN with tests",
+    "request": "Please create a long-running Goal to implement this plan with tests",
     "expected_semantic": "resolved",
     "expected_authority": "planning_only"
   }

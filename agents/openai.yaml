@@ -1,4 +1,4 @@
 interface:
   display_name: "Goal Entry"
-  short_description: "Route Goal requests by profile, lifecycle, and provider."
-  default_prompt: "Use $goal-entry to resolve the Runtime Profile and lifecycle before creating or binding a goal."
+  short_description: "Route explicit durable Goals; use Compound Engineering for normal work."
+  default_prompt: "Use $goal-entry only to create or resume an explicit durable Goal. For ordinary engineering work, use Compound Engineering."

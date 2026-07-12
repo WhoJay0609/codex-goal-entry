@@ -1,14 +1,14 @@
 [
   {
     "name": "partial_engineering_stack",
-    "request": "请实现这个跨模块工程",
+    "request": "请创建一个长期 Goal，实现这个跨模块工程",
     "capabilities": ["goal-preflight"],
     "expected_provider_status": "degraded",
     "expected_authorization_state": "handoff_required"
   },
   {
     "name": "incompatible_stack",
-    "request": "请实现这个跨模块工程",
+    "request": "请创建一个长期 Goal，实现这个跨模块工程",
     "capabilities": ["unknown-owner"],
     "expected_provider_status": "incompatible",
     "expected_authorization_state": "handoff_required"

@@ -1,12 +1,12 @@
 [
   {
     "name": "research_engineering_research",
-    "request": "先开展自动科研，然后实现跨模块代码，最后迭代实验",
+    "request": "请创建一个长期 Goal，先开展自动科研，然后实现跨模块代码，最后迭代实验",
     "profiles": ["scientific_autoresearch", "complex_engineering", "scientific_autoresearch"]
   },
   {
     "name": "adjacent_profiles_collapse",
-    "request": "先实现解析器，然后添加测试，最后启动自动科研",
+    "request": "请创建一个长期 Goal，先实现解析器，然后添加测试，最后启动自动科研",
     "profiles": ["complex_engineering", "scientific_autoresearch"]
   }
 ]
