@@ -2,9 +2,9 @@
 
 ## Repository Purpose
 
-This repository publishes the standalone `goal-entry` Codex skill package.
-It should remain small, readable, and safe to reuse outside the author's local
-machine.
+This repository publishes the public `goal-entry` router and its private
+`goal-*` family skills. Keep the public router small and the family protocols
+explicit, readable, and safe to reuse outside the author's local machine.
 
 ## Editing Rules
 
@@ -13,7 +13,7 @@ machine.
 - Do not add local absolute paths, private machine assumptions, or secret
   material.
 - Keep `goal-entry` router-only. Detailed execution protocol belongs in
-  external `goal-*` child skills.
+  the internal `goal-*` child skills under `skills/`.
 - Keep examples bilingual-friendly, but prefer Chinese explanations for this
   public package.
 
@@ -24,4 +24,6 @@ Run before claiming completion:
 ```bash
 python3 scripts/quick_validate.py .
 python3 scripts/resolve_goal_entry.py --request 'PLEASE IMPLEMENT THIS PLAN with tests' --readiness-status passed
+python3 scripts/check_goal_stack.py .
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```

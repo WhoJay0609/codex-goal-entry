@@ -1,0 +1,69 @@
+{
+  "schema": "goal-expert-registry/v1",
+  "version": "1.0.0",
+  "experts": [
+    {
+      "id": "implementation",
+      "name": "Implementation",
+      "primary_domains": ["implementation"],
+      "families": ["implementation", "verification"],
+      "accepts_claims": []
+    },
+    {
+      "id": "debugging",
+      "name": "Debugging",
+      "primary_domains": ["debugging"],
+      "families": ["debugging", "verification"],
+      "accepts_claims": []
+    },
+    {
+      "id": "test_and_verification",
+      "name": "Test and Verification",
+      "primary_domains": ["verification"],
+      "families": ["verification"],
+      "accepts_claims": ["code", "experiment"]
+    },
+    {
+      "id": "architecture_and_code_review",
+      "name": "Architecture and Code Review",
+      "primary_domains": ["architecture"],
+      "families": ["architecture", "verification"],
+      "accepts_claims": ["code"]
+    },
+    {
+      "id": "research_and_experiment",
+      "name": "Research and Experiment",
+      "primary_domains": ["research"],
+      "families": ["research", "verification"],
+      "accepts_claims": ["experiment"]
+    },
+    {
+      "id": "documentation_and_communication",
+      "name": "Documentation and Communication",
+      "primary_domains": ["documentation"],
+      "families": ["documentation"],
+      "accepts_claims": []
+    },
+    {
+      "id": "release_and_reliability",
+      "name": "Release and Reliability",
+      "primary_domains": ["release"],
+      "families": ["release", "verification"],
+      "accepts_claims": ["release"]
+    },
+    {
+      "id": "security_and_risk",
+      "name": "Security and Risk",
+      "primary_domains": ["security"],
+      "families": ["security", "verification"],
+      "accepts_claims": ["security", "release"]
+    },
+    {
+      "id": "frontend_and_ui_engineering",
+      "name": "Frontend and UI Engineering",
+      "primary_domains": ["frontend"],
+      "families": ["frontend", "implementation", "verification"],
+      "accepts_claims": []
+    }
+  ]
+}

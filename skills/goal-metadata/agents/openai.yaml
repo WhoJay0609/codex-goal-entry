@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Metadata"
+  short_description: "Check Goal stack registries and drift"
+  default_prompt: "Use $goal-metadata to validate the Goal stack metadata after this change."
+policy:
+  allow_implicit_invocation: false

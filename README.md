@@ -1,11 +1,25 @@
-# Codex Goal Entry
+# Codex Goal Entry and Goal Skills
 
-`goal-entry` 是一个小型分流器，不是工程执行框架。
+`goal-entry` 是一个小型分流器；本仓库同时维护它所调用的内部 `goal-*` 家族
+skills。它不是日常工程执行框架。
 
 - 日常工程任务默认进入 **Compound Engineering**：实现、修复、测试、review、文档、有限范围的计划。
 - 只有用户明确创建/恢复一个长期、持续、自治或科研循环的 **Goal** 时，才进入 Goal lifecycle。
 
 当前维护版本：`v1.0.0`。
+
+## Goal family
+
+`skills/` 保存 Goal lifecycle 的内部协议，当前包括：
+
+`goal-preflight`、`goal-context`、`goal-objective`、`goal-plan`、
+`goal-dispatch`、`goal-team`、`goal-backend`、`goal-trace`、
+`goal-metadata` 和 `goal-close`。
+
+`goal-backend` 只提供六类机械能力：run 初始化、证据记录、trace 校验、运行时
+清理、Goal 同步和旧 trace 的只读读取。规划、provider 选择、专家选择和 dispatch
+仍由各自的 Goal skill 与主编排器负责。专家注册表固定为九类，并包含前端与 UI
+工程专家；skill family 授权默认拒绝，硬拒绝规则优先。
 
 ## 为什么这样拆分
 
@@ -59,9 +73,11 @@ Authority Pass。缺少 verified evidence 时，Goal 路径会保守停在规划
 
 仅有“实现”“运行实验”“active goal”或“派子代理”都不够。`不要执行` 始终优先。
 
-进入 Goal 后，外部 child skills 分别负责 `goal-preflight`、`goal-objective`、
-`goal-context`、`goal-plan`、`goal-dispatch` 和 `goal-close`；本仓库只负责路由
-合同与只读验证，不直接创建/更新/关闭 Goal。
+进入 Goal 后，由本仓库内的 `goal-*` family 分别负责
+`goal-preflight`、`goal-objective`、`goal-context`、`goal-plan`、
+`goal-dispatch`、`goal-backend`、`goal-trace`、`goal-metadata` 和
+`goal-close`；`goal-entry` 自身仍只负责路由合同与只读验证，不直接创建、更新或
+关闭 Goal。
 
 ## 内容与验证
 
@@ -70,6 +86,8 @@ Authority Pass。缺少 verified evidence 时，Goal 路径会保守停在规划
 - `references/entry_session_contract.json`：仅 Goal 路径使用的 intent 与证据合同。
 - `references/runtime_profiles.json`：Goal runtime profiles 的可移植声明。
 - `scripts/validate_goal_runtime.py`：只读 trace 验证器。
+- `goal-stack-manifest.json`：声明 public `goal-entry` 与内部 Goal family 的边界。
+- `scripts/check_goal_stack.py`：检查 public router 与内部 family 的一致性。
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -77,6 +95,8 @@ python3 scripts/validate_goal_runtime.py \
   tests/fixtures/engineering_runtime_trace.json \
   tests/fixtures/autoresearch_runtime_trace.json
 python3 scripts/quick_validate.py .
+python3 scripts/check_goal_stack.py .
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 ## 发布

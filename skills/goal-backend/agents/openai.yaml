@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Backend"
+  short_description: "Run private Goal backend capabilities"
+  default_prompt: "Use $goal-backend through the owning Goal skill for this authorized capability."
+policy:
+  allow_implicit_invocation: false

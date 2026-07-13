@@ -11,7 +11,7 @@ and an explicit durable Goal lifecycle.
 | Detecting an explicit durable Goal or explicit Goal resume | `goal-entry` |
 | Readiness before Goal creation or binding | `goal-preflight` |
 | Goal objective and verified resume cursor | `goal-objective`, `goal-context` |
-| Goal roadmap, dispatch, backend artifacts, trace, closeout | External `goal-*` child skills |
+| Goal roadmap, dispatch, backend artifacts, trace, closeout | Internal `goal-*` family skills |
 
 The resolver first selects `execution_destination`:
 

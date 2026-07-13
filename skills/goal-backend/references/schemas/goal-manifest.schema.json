@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goal-manifest.schema.json",
+  "type": "object",
+  "required": ["schema", "goal_id", "entry_session_id", "request_fingerprint", "started_at"],
+  "properties": {
+    "schema": {"const": "goal-run/v1"},
+    "goal_id": {"type": "string", "minLength": 1},
+    "entry_session_id": {"type": "string", "pattern": "^entry-[a-z0-9]{12,64}$"},
+    "request_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "started_at": {"type": "string"}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,86 @@
+{
+  "schema": "goal-skill-family-registry/v1",
+  "version": "1.0.0",
+  "global_deny": {
+    "prefixes": ["goal-"],
+    "skills": [
+      "harness-agent",
+      "multi-agent",
+      "dispatching-parallel-agents",
+      "compound-engineering:lfg",
+      "compound-engineering:ce-work",
+      "compound-engineering:ce-plan",
+      "compound-engineering:ce-brainstorm",
+      "compound-engineering:ce-ideate",
+      "compound-engineering:ce-strategy",
+      "compound-engineering:ce-commit-push-pr",
+      "compound-engineering:ce-babysit-pr"
+    ],
+    "goal_tools": ["create_goal", "get_goal", "update_goal"]
+  },
+  "families": {
+    "implementation": {
+      "skills": [
+        "implement",
+        "incremental-implementation",
+        "code-simplification",
+        "compound-engineering:ce-simplify-code"
+      ]
+    },
+    "debugging": {
+      "skills": [
+        "diagnose",
+        "diagnosing-bugs",
+        "debugging-and-error-recovery",
+        "compound-engineering:ce-debug"
+      ]
+    },
+    "verification": {
+      "skills": [
+        "code-review-and-quality",
+        "initiating-coverage",
+        "compound-engineering:ce-code-review",
+        "compound-engineering:ce-proof"
+      ]
+    },
+    "architecture": {
+      "skills": [
+        "api-and-interface-design",
+        "codebase-design",
+        "domain-modeling",
+        "documentation-and-adrs"
+      ]
+    },
+    "research": {
+      "skills": [
+        "academic-research-suite",
+        "experiment-agent",
+        "analyze-results",
+        "ablation-planner"
+      ]
+    },
+    "documentation": {
+      "skills": ["doc", "documentation-and-adrs", "humanizer-zh", "edit-article"]
+    },
+    "release": {
+      "skills": [
+        "git-pr-workflow",
+        "git-workflow-and-versioning",
+        "ci-cd-and-automation",
+        "finishing-a-development-branch"
+      ]
+    },
+    "security": {
+      "skills": ["code-review-and-quality", "dd-checklist", "constitutional-ai"]
+    },
+    "frontend": {
+      "skills": [
+        "frontend",
+        "frontend-ui-engineering",
+        "design-an-interface",
+        "browser-testing-with-devtools",
+        "compound-engineering:ce-test-browser"
+      ]
+    }
+  }
+}

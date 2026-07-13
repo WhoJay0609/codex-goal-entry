@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "goal-event.schema.json",
+  "type": "object",
+  "required": ["event_version", "event_id", "timestamp", "goal_id", "entry_session_id", "owner_skill", "capability", "kind", "status"],
+  "properties": {
+    "event_version": {"const": 1},
+    "event_id": {"type": "string"},
+    "timestamp": {"type": "string"},
+    "goal_id": {"type": "string"},
+    "entry_session_id": {"type": "string"},
+    "owner_skill": {"type": "string"},
+    "capability": {"const": "evidence.record"},
+    "kind": {"type": "string"},
+    "status": {
+      "enum": ["completed", "missing", "partial", "failed", "blocked", "readiness_only"]
+    },
+    "data": {"type": "object"}
+  },
+  "additionalProperties": false
+}

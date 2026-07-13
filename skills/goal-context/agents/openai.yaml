@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Context"
+  short_description: "Resolve repository context for Goal work"
+  default_prompt: "Use $goal-context to resolve repository instructions before Goal execution."
+policy:
+  allow_implicit_invocation: false
