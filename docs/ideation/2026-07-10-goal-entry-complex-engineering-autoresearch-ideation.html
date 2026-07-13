@@ -109,33 +109,241 @@
 <main>
   <header>
     <p class="eyebrow">Ideation · repository grounded</p>
-    <h1>让 <code>goal-entry</code> 成为可信的通用任务入口</h1>
-    <p class="lede">v0.1.0 已补齐 Runtime Profiles、typed decision、里程碑门禁与 trace conformance。新的核心判断是：入口仍缺少歧义处理、复合任务编译、durable identity、provider 交接闭环和用户纠偏，因此“能分类”还不等于“能可靠接住任务”。</p>
+    <h1>让 <code>goal-entry</code> 成为轻量控制面</h1>
+    <p class="lede">2026-07-13 的收敛结论：删除 <code>harness-agent</code> 编排身份，把必要执行能力放入 <code>goal-entry → goal-* → goal-backend</code> 工具流；<code>goal-entry</code> 被显式调用后，由模型在 direct、Compound 与 durable Goal 三个执行层级中选择，复杂项目自动升级为 Goal。</p>
     <div class="meta" aria-label="Document metadata">
-      <span class="chip">Date <time datetime="2026-07-11">2026-07-11</time></span>
+      <span class="chip">Date <time datetime="2026-07-13">2026-07-13</time></span>
       <span class="chip">Topic goal-entry-complex-engineering-autoresearch</span>
-      <span class="chip">Focus v0.1.0 后的通用用户任务入口</span>
+      <span class="chip">Focus 轻量 Goal 入口与 harness 后端工具流</span>
       <span class="chip">Mode repo-grounded</span>
+    </div>
+    <div class="callout">
+      <p class="eyebrow">2.0 implementation note</p>
+      <p><strong>当前权威合同：</strong><code>goal-entry</code> 是轻量、model-native 的通用入口；direct 只读，bounded mutation 进入 Compound 或用户点名的专业 skill，只有需要 durable lifecycle、任务图、里程碑、Issue 投影、验收和 PR 的项目进入 Goal。旧 regex resolver 仅用于诊断与离线兼容，<code>harness-agent</code> 不再作为 skill 或 compatibility card 存在。下文旧轮次内容作为决策历史保留，不再代表当前运行时路由。</p>
     </div>
   </header>
 
   <div class="stats" aria-label="Ideation counts">
-    <div class="stat"><strong>42</strong><span>post-v0.1 raw candidates</span></div>
-    <div class="stat"><strong>7</strong><span>ranked survivors</span></div>
-    <div class="stat"><strong>5</strong><span>topic axes covered</span></div>
-    <div class="stat"><strong>35</strong><span>ideas cut or absorbed</span></div>
+    <div class="stat"><strong>43</strong><span>new harness-flow candidates</span></div>
+    <div class="stat"><strong>7</strong><span>new ranked survivors</span></div>
+    <div class="stat"><strong>5</strong><span>new topic axes covered</span></div>
+    <div class="stat"><strong>36</strong><span>new ideas cut or absorbed</span></div>
   </div>
 
   <nav aria-label="Document navigation">
     <ul>
-      <li><a href="#grounding-context">Grounding Context</a></li>
-      <li><a href="#topic-axes">Topic Axes</a></li>
-      <li><a href="#ranked-ideas">Post-v0.1 Ranked Ideas</a></li>
-      <li><a href="#rejection-summary">Rejection Summary</a></li>
+      <li><a href="#harness-grounding-context">Harness Grounding</a></li>
+      <li><a href="#harness-topic-axes">Harness Axes</a></li>
+      <li><a href="#harness-ranked-ideas">Harness Ranked Ideas</a></li>
+      <li><a href="#harness-rejection-summary">Harness Rejections</a></li>
+      <li><a href="#grounding-context">2026-07-11 Grounding</a></li>
+      <li><a href="#topic-axes">2026-07-11 Axes</a></li>
+      <li><a href="#ranked-ideas">2026-07-11 Ranked Ideas</a></li>
+      <li><a href="#rejection-summary">2026-07-11 Rejections</a></li>
       <li><a href="#original-ranked-ideas">2026-07-10 Baseline</a></li>
       <li><a href="#original-rejection-summary">Original Rejections</a></li>
     </ul>
   </nav>
+
+  <section id="harness-grounding-context">
+    <p class="eyebrow">Current round · Harness tool flow</p>
+    <h2>Grounding Context</h2>
+    <p><strong>Codebase Context.</strong> 当前 2.0 合同把 <code>goal-entry</code> 定义为显式调用的通用执行入口：模型根据完整上下文选择只读 direct、bounded Compound 或 durable Goal；复杂、多里程碑且需要 Issue/验收/PR 闭环的项目会自动升级为 Goal。十个 <code>goal-*</code> child skills 分别拥有 preflight、context、objective、plan、dispatch/team、backend、trace 和 closeout。</p>
+    <p><code>goal-backend</code> 已把历史 <code>harness-agent</code> 定义为 backend compatibility facade，但已安装的 <code>harness-agent/SKILL.md</code> 仍有 346 行，并直接索引 33 个 references、48 个非字节码脚本和 973 个 eval 文件；它还同时描述 standard、goal-scoped autonomous、auto、discussion、advisory、debate、maintenance 与 single-agent exception 八类模式。这使一个后端包继续表现得像第二个公共编排器。</p>
+    <p>本机 16 份可识别 run manifest 的只读抽样显示：12 份是 Goal-scoped autonomous，2 份 auto-harness，另有 1 份 maintenance 与 1 份 single-agent exception；没有观察到 discussion 或 debate run。九个基础证据文件在 16 份 run 中全部出现，Goal graph/queue/scheduler/registry 出现在 12 份，auto-specific state/results 只出现在 2 份。<code>validate_harness_trace.py</code> 在 run artifacts 中出现 17 次，是最明确的实际复用点。</p>
+    <p>当前 routing policy 仍写着历史上的 <code>goal-entry → Superpowers → harness-agent</code> 链，与新的 Compound-default 入口合同冲突。与此同时，<code>goal-dispatch</code> 已经拥有 provider 选择，<code>goal-trace</code> 已经拥有验证，<code>goal-close</code> 已经拥有 closeout；继续让 harness entry 重复这些政策会制造双重控制面。</p>
+    <p><strong>External Context.</strong> 官方 <a href="https://developers.openai.com/codex/skills">Codex Skills 文档</a>强调 focused job、清晰 scope 与渐进加载，并支持关闭隐式调用；<a href="https://openai.github.io/openai-agents-python/tools/">OpenAI Agents SDK tools</a> 把专门 agent/tool 暴露给保留控制权的 manager，并可延迟发现大型工具面；<a href="https://openai.github.io/openai-agents-python/handoffs/">handoffs</a> 则适用于真正移交控制权。这里的结构更符合 manager-owned tools，而不是 harness 再次接管线程。</p>
+    <div class="callout">
+      <p class="eyebrow">Boundary to preserve</p>
+      <p><strong>精简目标不是删除证据能力，而是删除重复的编排身份。</strong> 模型在 <code>goal-entry</code> 内决定执行层级，只有 Goal 路由创建 durable state；<code>goal-*</code> 拥有生命周期政策，backend 只提供六类受控机械能力、兼容读取和验证。</p>
+    </div>
+  </section>
+
+  <section id="harness-topic-axes">
+    <p class="eyebrow">Surface map · 2026-07-13</p>
+    <h2>Topic Axes</h2>
+    <ul class="axes">
+      <li><strong>1 · Activation and ownership</strong>谁能公开触发 Goal，谁保留线程控制权，谁只作为工具返回结果。</li>
+      <li><strong>2 · Entry surface and context load</strong>入口需要加载多少协议、references、scripts 与 schema 才能完成一次窄调用。</li>
+      <li><strong>3 · Modes and orchestration overlap</strong>Compound Engineering、Superpowers、平台 subagent 与历史 harness modes 的边界。</li>
+      <li><strong>4 · Artifacts and validation</strong>哪些证据是稳定内核，哪些只应由 profile 按声明增量启用。</li>
+      <li><strong>5 · Compatibility and migration</strong>如何保留旧 trace/path 的读取能力，同时阻止兼容层永久成为公共架构。</li>
+    </ul>
+  </section>
+
+  <section id="harness-ranked-ideas">
+    <p class="eyebrow">Seven directions worth team discussion</p>
+    <h2>Ranked Ideas</h2>
+    <ul class="jump-list" aria-label="Harness tool-flow ranked idea jump list">
+      <li><a href="#c1">C1. Capability Toolchain</a></li>
+      <li><a href="#c2">C2. Compatibility Quarantine</a></li>
+      <li><a href="#c3">C3. Runtime Kernel</a></li>
+      <li><a href="#c4">C4. Dispatch Audit</a></li>
+      <li><a href="#c5">C5. Evidence Profiles</a></li>
+      <li><a href="#c6">C6. Runtime Extensions</a></li>
+      <li><a href="#c7">C7. Contract Compiler</a></li>
+    </ul>
+
+    <article class="idea" id="c1">
+      <div class="idea-head"><div class="rank">C1</div><div><h3>C1. Capability-linked Goal Toolchain</h3><p>把 harness 从可调用的第二编排器，改成 <code>goal-*</code> 工具背后的能力实现。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd><code>goal-entry</code> 被显式调用后由模型选择执行层级，并且只在 Goal 路径创建 typed Goal session；session 声明所需能力，随后由主线程调用窄 <code>goal-*</code> tools。<code>goal-backend</code> 根据 capability request 返回结构化结果，不接管路由、计划或团队。</dd>
+        <dt>Axis</dt><dd>Activation and ownership</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> 当前 <code>goal-entry</code> 已是唯一公开 router，<code>goal-backend</code> 已把 harness 定义为 facade，Goal tools 又必须由主 orchestrator 调用。<strong>external:</strong> OpenAI 的 manager pattern 把专门能力作为 tools 使用，manager 保留控制权。</dd>
+        <dt>Rationale</dt><dd>这正面满足“把 harness 作为 goal-entry 工具流的一部分”：控制面只有一个，生命周期 ownership 可审计，backend 能继续复用而无需把全部上下文塞进入口。</dd>
+        <dt>Downsides</dt><dd>需要稳定 capability vocabulary 与错误合同；如果 capability 粒度过细，会把简化问题转化成新的配置复杂度。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">96%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+      <figure class="visual">
+        <svg viewBox="0 0 860 230" role="img" aria-label="Conceptual manager-owned Goal toolchain with a single control plane and on-demand runtime capabilities">
+          <defs><marker id="arrow5" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#557067"/></marker></defs>
+          <rect class="svg-accent" x="28" y="67" rx="14" width="152" height="92"/><text class="svg-text" x="104" y="97">goal-entry</text><text class="svg-small" x="104" y="123">model-native levels</text><text class="svg-small" x="104" y="143">retains control</text>
+          <path d="M180 113 H235" stroke="#557067" stroke-width="2" marker-end="url(#arrow5)"/>
+          <rect class="svg-blue" x="235" y="48" rx="14" width="220" height="130"/><text class="svg-text" x="345" y="78">goal-* tools</text><text class="svg-small" x="345" y="105">preflight · plan · dispatch</text><text class="svg-small" x="345" y="127">trace · close · backend</text><text class="svg-small" x="345" y="151">lifecycle policy owners</text>
+          <path d="M455 113 H512" stroke="#557067" stroke-width="2" marker-end="url(#arrow5)"/>
+          <rect class="svg-box" x="512" y="38" rx="14" width="315" height="150"/><text class="svg-text" x="669" y="68">runtime capability layer</text><text class="svg-small" x="669" y="96">record · validate · cleanup · sync</text><text class="svg-small" x="669" y="121">provider adapters · compatibility readers</text><text class="svg-small" x="669" y="146">loaded only when requested</text><text class="svg-small" x="669" y="169">never routes the workflow</text>
+        </svg>
+        <figcaption>Illustrative direction: one manager owns the Goal; child tools own policy; the historical harness package becomes an on-demand capability layer.</figcaption>
+      </figure>
+    </article>
+
+    <article class="idea" id="c2">
+      <div class="idea-head"><div class="rank">C2</div><div><h3>C2. Compatibility Quarantine</h3><p>先隐藏旧入口，再让兼容性成为有期限的读取责任。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>关闭 <code>harness-agent</code> 的 implicit invocation，把 346 行 entry 缩成约 40–60 行 compatibility card：不再自行选 mode/provider，只指向 <code>goal-entry</code> 与具体 <code>goal-*</code> owner。旧 script/schema/path 继续可读；每个 legacy alias 记录 owner、最后观测使用、warning gate 与移除条件。</dd>
+        <dt>Axis</dt><dd>Compatibility and migration</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> harness entry 与 routing policy 仍宣称旧 Superpowers-first 链，而新公开合同已经把普通工程切到 Compound；安装面包含 33 个 reference 索引与 48 个脚本，远超入口需要。<strong>external:</strong> Codex Skills 支持 <code>allow_implicit_invocation: false</code>，并建议每个 skill 聚焦单一工作。</dd>
+        <dt>Rationale</dt><dd>这是风险最低、最快减少“误触发 + 双入口 + 全量上下文”的切口，也不会破坏历史 trace 的验证与恢复。</dd>
+        <dt>Downsides</dt><dd>直接调用旧 skill 的用户会看到迁移提示；真正删除路径仍必须以 usage evidence 和兼容门禁为前提。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">95%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge high">Low</span></dd>
+      </dl>
+      <figure class="visual">
+        <svg viewBox="0 0 860 235" role="img" aria-label="Before and after contrast between a broad public harness entry and a quarantined compatibility facade">
+          <defs><marker id="arrow6" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#557067"/></marker></defs>
+          <text class="svg-text" x="205" y="28">Before</text><rect class="svg-amber" x="30" y="48" rx="14" width="350" height="145"/><text class="svg-text" x="205" y="78">discoverable harness-agent</text><text class="svg-small" x="205" y="106">8 modes · provider selection</text><text class="svg-small" x="205" y="130">33 references · 48 scripts</text><text class="svg-small" x="205" y="154">routing + lifecycle + validation</text><text class="svg-small" x="205" y="178">second control plane</text>
+          <path d="M400 120 H458" stroke="#557067" stroke-width="2" marker-end="url(#arrow6)"/>
+          <text class="svg-text" x="659" y="28">After</text><rect class="svg-accent" x="478" y="48" rx="14" width="350" height="145"/><text class="svg-text" x="653" y="78">compatibility card</text><text class="svg-small" x="653" y="106">implicit invocation off</text><text class="svg-small" x="653" y="130">routes to goal-* owner</text><text class="svg-small" x="653" y="154">legacy reads remain valid</text><text class="svg-small" x="653" y="178">expiry is evidence-gated</text>
+        </svg>
+        <figcaption>Illustrative contrast: shrink the discoverable instruction surface without prematurely deleting the backend compatibility surface.</figcaption>
+      </figure>
+    </article>
+
+    <article class="idea" id="c3">
+      <div class="idea-head"><div class="rank">C3</div><div><h3>C3. Goal Runtime Kernel</h3><p>围绕稳定机械能力定义 backend，而不是围绕“所有 agentic 工作”定义它。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>把 runtime 的必选面收敛为 run identity、evidence record、validate、cleanup、close 与 Goal sync，并提供稳定 kernel API/CLI；初始化、provider、团队、讨论与实验循环变为可选模块。child skills 依赖 kernel verbs，不直接依赖几十个内部脚本名。</dd>
+        <dt>Axis</dt><dd>Entry surface and context load</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> backend map 已把 48 个脚本聚类成少数职责；16 个样本中 <code>validate_harness_trace.py</code> 有 17 次引用，且九个基础证据文件全覆盖，说明验证/记录比通用编排更接近稳定产品内核。</dd>
+        <dt>Rationale</dt><dd>稳定窄 API 能让 <code>goal-trace</code>、<code>goal-close</code> 与 <code>goal-backend</code> 在内部文件迁移时保持不变，并使 skill 上下文真正渐进加载。</dd>
+        <dt>Downsides</dt><dd>需要先冻结最小 kernel contract；仓促合并脚本可能隐藏现有 schema 差异和恢复语义。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">93%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="c4">
+      <div class="idea-head"><div class="rank">C4</div><div><h3>C4. Provider-neutral Dispatch Audit</h3><p>provider 选择留在 <code>goal-dispatch</code>，runtime 只验证可替换 adapter 的证据。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>定义统一 dispatch audit envelope：provider、capability、request digest、acceptance、child/tool identity、result/cleanup evidence。Compound Engineering、Superpowers 或平台 subagent 各自提供 adapter；runtime 不再写任何 provider-first policy。</dd>
+        <dt>Axis</dt><dd>Modes and orchestration overlap</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> <code>goal-dispatch</code> 已拥有 provider selection，而 harness routing policy 仍复制 Superpowers-first 规则。<strong>external:</strong> OpenAI Agents SDK 允许动态启用 tools/handoffs，并用独立 trace/span 记录执行，说明选择政策与审计机制可以分离。</dd>
+        <dt>Rationale</dt><dd>它直接消除与 Compound Engineering 的重叠，并保护 trace/cleanup 价值不绑定某一个 orchestration provider。</dd>
+        <dt>Downsides</dt><dd>adapter 需要严格的最小共同字段；过度追求统一会丢失 provider-specific 语义。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">91%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge medium">Medium</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="c5">
+      <div class="idea-head"><div class="rank">C5</div><div><h3>C5. Composable Evidence Profiles</h3><p>证据量跟随 claim 与 capability，而不是跟随“是否进入 harness”。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>定义 additive profiles，例如 <code>core_evidence</code>、<code>delegation</code>、<code>autoresearch</code> 与 <code>closeout</code>。基础 event ledger 记录共同事实，graph/queue/scheduler、auto state、debate packet 等只在 capability 被激活时成为 required artifacts；单 agent Goal 不再被迫伪造 team-shaped ledgers。</dd>
+        <dt>Axis</dt><dd>Artifacts and validation</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> 16 个样本中基础九文件全覆盖，Goal orchestration artifacts 覆盖 12 个，auto artifacts 只覆盖 2 个；当前合同却把多类模式揉进一个入口和大量 gate 分支。</dd>
+        <dt>Rationale</dt><dd>这种分层能保留 rigorous evidence，同时让普通 durable Goal 的成本与真实声明相称，是“精简但不降级”的核心证据策略。</dd>
+        <dt>Downsides</dt><dd>event-ledger 与派生 view 的迁移风险较高；profile 组合需要防止出现未定义交互。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">88%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge large">High</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="c6">
+      <div class="idea-head"><div class="rank">C6</div><div><h3>C6. Runtime Extensions with usage-backed retirement</h3><p>把低频 mode 从 core 移到显式扩展，但不把一次本机抽样误当成删除证明。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>将 autoresearch、debate/discussion 与 maintenance 定义为显式 runtime extensions；core 只保留共同 kernel 和 delegation evidence。增加只读 usage doctor，按 manifests、capabilities 与 artifact profiles 汇总真实使用，作为扩展晋升、保留或 retirement 的证据。</dd>
+        <dt>Axis</dt><dd>Modes and orchestration overlap</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> 16 个本机样本中 auto 仅 2 个，discussion/debate 为 0，但相关 mode 占据大量入口、schema 与 gate 表面。<strong>reasoned:</strong> 抽样能证明需要隔离，不能单独证明可以删除。</dd>
+        <dt>Rationale</dt><dd>它为进一步瘦身建立持续垃圾回收机制，避免今天的“精简版”几年后再次累积成全能入口。</dd>
+        <dt>Downsides</dt><dd>物理拆包与兼容测试成本高；低频不等于低价值，退休门必须包含战略例外。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">84%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge large">High</span></dd>
+      </dl>
+    </article>
+
+    <article class="idea" id="c7">
+      <div class="idea-head"><div class="rank">C7</div><div><h3>C7. Contract Compiler</h3><p>用一个 capability/ownership/compatibility schema 生成索引和验证矩阵。</p></div></div>
+      <dl>
+        <dt>Description</dt><dd>建立单一机器可读 manifest，声明 capability、owning <code>goal-*</code> skill、required artifacts、valid transitions、provider adapters 与 legacy aliases；由它生成 backend catalog、script/schema map、eval matrix 和 migration warnings，手写文档只解释“为什么”。</dd>
+        <dt>Axis</dt><dd>Compatibility and migration</dd>
+        <dt>Basis</dt><dd><strong>direct:</strong> 当前 framework change protocol 要求同步修改 entry、references、validators、evals、artifact contract 与 README；stale routing policy 已经证明多处手工 ownership 声明会漂移。</dd>
+        <dt>Rationale</dt><dd>这是长期防回弹机制：以后新增或删除能力时，错误会在生成/验证阶段显现，而不是等安装面与源仓库再次分叉。</dd>
+        <dt>Downsides</dt><dd>前期 schema 与生成器成本高；如果先于 kernel/capability boundary 稳定，会把错误架构固化成代码生成。</dd>
+        <dt>Confidence</dt><dd><span class="badge high">80%</span></dd>
+        <dt>Complexity</dt><dd><span class="badge large">High</span></dd>
+      </dl>
+    </article>
+  </section>
+
+  <section id="harness-rejection-summary">
+    <p class="eyebrow">Current round · explicit cuts</p>
+    <h2>Rejection Summary</h2>
+    <p>本轮 36 个 frame-level candidates 全部逐项复核：34 个被更强的跨轴方案吸收，2 个因边界或投入产出被拒绝。五个 topic axes 都有 survivor。仓库规则要求本轮不派发 subagent，因此 fresh-context verifier 不可用；以下结论由主线程按同一 rubric 复核，这是本轮唯一的验证降级。</p>
+    <div class="rejection-wrap">
+      <table class="rejections">
+        <thead><tr><th>ID</th><th>Considered idea</th><th>Reason cut</th></tr></thead>
+        <tbody>
+          <tr id="hr1"><td>H-R1</td><td>P1 · Retire the harness entry</td><td>被 C2 吸收；单独“退休”缺少兼容读取与 expiry gate。</td></tr>
+          <tr id="hr2"><td>H-R2</td><td>P2 · Compress the entry</td><td>被 C2/C3 吸收；行数目标必须服务于 ownership 与 kernel boundary。</td></tr>
+          <tr id="hr3"><td>H-R3</td><td>P3 · Remove duplicated Superpowers policy</td><td>被 C4 吸收；provider-neutral audit 比单点删文档更完整。</td></tr>
+          <tr id="hr4"><td>H-R4</td><td>P4 · Artifact bundles</td><td>被 C5 吸收；additive evidence profiles 同时覆盖单 agent 与 auto。</td></tr>
+          <tr id="hr5"><td>H-R5</td><td>P5 · Capability API</td><td>被 C1/C3 吸收；toolchain ownership 与 kernel verbs 是更完整表达。</td></tr>
+          <tr id="hr6"><td>H-R6</td><td>P6 · Split rare modes</td><td>被 C6 吸收；需要 usage-backed retirement 才能避免凭抽样误删。</td></tr>
+          <tr id="hr7"><td>H-R7</td><td>I1 · Disable direct invocation</td><td>被 C2 吸收；还必须包含可逆迁移和 legacy reader。</td></tr>
+          <tr id="hr8"><td>H-R8</td><td>I2 · Replace the reference index</td><td>被 C2 吸收；compatibility card 是更明确的入口形态。</td></tr>
+          <tr id="hr9"><td>H-R9</td><td>I3 · Load by capability</td><td>被 C1 吸收；需要与 Goal session 和 child-tool ownership 一起定义。</td></tr>
+          <tr id="hr10"><td>H-R10</td><td>I4 · Minimum artifact profile</td><td>被 C5 吸收；单一 minimum 无法表达 delegation 与 autoresearch 增量。</td></tr>
+          <tr id="hr11"><td>H-R11</td><td>I5 · Remove advisory and debate</td><td>被 C6 吸收；零观测不足以直接删除，先扩展化并持续测量。</td></tr>
+          <tr id="hr12"><td>H-R12</td><td>I6 · Generate indexes</td><td>被 C7 吸收；生成范围扩展到 ownership、eval 与 migration。</td></tr>
+          <tr id="hr13"><td>H-R13</td><td>A1 · Harness as library package</td><td>被 C3 吸收；runtime kernel 给出更可操作的最小产品身份。</td></tr>
+          <tr id="hr14"><td>H-R14</td><td>A2 · Goal-entry as manager</td><td>被 C1 吸收；加入 session capability 与 structured return 后才闭环。</td></tr>
+          <tr id="hr15"><td>H-R15</td><td>A3 · Validation as primary product</td><td>被 C3 吸收；kernel 同时保留 record、cleanup、close 与 sync。</td></tr>
+          <tr id="hr16"><td>H-R16</td><td>A4 · Replaceable provider adapters</td><td>被 C4 吸收；dispatch audit envelope 是可验证的具体落点。</td></tr>
+          <tr id="hr17"><td>H-R17</td><td>A5 · One event log</td><td>被 C5 吸收；保留 profile 与大型 payload 例外，避免过度一刀切。</td></tr>
+          <tr id="hr18"><td>H-R18</td><td>A6 · Auto-harness as extension</td><td>被 C6 吸收；扩展策略统一覆盖其他低频 mode。</td></tr>
+          <tr id="hr19"><td>H-R19</td><td>L1 · One GoalRun kernel CLI</td><td>被 C3 吸收；CLI 是 kernel 的接口手段，不是独立方向。</td></tr>
+          <tr id="hr20"><td>H-R20</td><td>L2 · Contract compiler</td><td>被 C7 直接提升为跨轴 survivor。</td></tr>
+          <tr id="hr21"><td>H-R21</td><td>L3 · Entry selects capabilities</td><td>被 C1 吸收；需要 child-tool model 防止 backend 接管。</td></tr>
+          <tr id="hr22"><td>H-R22</td><td>L4 · Usage-backed mode retirement</td><td>作为 C6 的保留/退休机制，不足以单独重构控制面。</td></tr>
+          <tr id="hr23"><td>H-R23</td><td>L5 · Compatibility matrix with expiry</td><td>被 C2/C7 吸收；既用于入口隔离，也用于生成迁移门。</td></tr>
+          <tr id="hr24"><td>H-R24</td><td>L6 · Install/source drift doctor</td><td>被 C2 吸收；它是迁移验证手段，不是独立产品边界。</td></tr>
+          <tr id="hr25"><td>H-R25</td><td>X1 · Microkernel analogy</td><td>被 C3 吸收；保留 kernel 结构，去掉只提供比喻的独立卡片。</td></tr>
+          <tr id="hr26"><td>H-R26</td><td>X2 · Dynamic capability linker</td><td>被 C1 吸收；渐进加载是 toolchain 的实现约束。</td></tr>
+          <tr id="hr27"><td>H-R27</td><td>X3 · WAL and materialized views</td><td>被 C5 吸收；数据库类比不应越过现有 artifact 兼容约束。</td></tr>
+          <tr id="hr28"><td>H-R28</td><td>X4 · Cold-start budget</td><td>作为 C1/C3 的未来验收指标，单独不够达到团队讨论门槛。</td></tr>
+          <tr id="hr29"><td>H-R29</td><td>X5 · Package-manager feature sets</td><td>被 C6 吸收；物理 feature set 是扩展边界稳定后的下游选择。</td></tr>
+          <tr id="hr30"><td>H-R30</td><td>X6 · Control/data plane split</td><td>被 C1/C4 吸收；两张卡分别落实 ownership 与 provider seam。</td></tr>
+          <tr id="hr31"><td>H-R31</td><td>CF1 · What if harness skill did not exist?</td><td>被 C2 吸收；以可逆 quarantine 代替直接消失。</td></tr>
+          <tr id="hr32"><td>H-R32</td><td>CF2 · What if there were no subagents?</td><td>被 C5 吸收；单 agent evidence profile 是更具体的等价路径。</td></tr>
+          <tr id="hr33"><td>H-R33</td><td>CF3 · Artifact-free Goal</td><td>边界冲突；普通 advisory 已不进入 explicit durable Goal，新增 ephemeral Goal 会重新扩大入口。</td></tr>
+          <tr id="hr34"><td>H-R34</td><td>CF4 · Stateless runtime for 100 Goals</td><td>投入相对证据过高；当前问题是 ownership/context load，没有并发租户瓶颈证据。</td></tr>
+          <tr id="hr35"><td>H-R35</td><td>CF5 · What if Superpowers disappeared?</td><td>被 C4 吸收；provider-neutral adapter 将这个测试变成正式合同。</td></tr>
+          <tr id="hr36"><td>H-R36</td><td>CF6 · Validation-only backend</td><td>被 C3 吸收；纯 validation 会丢掉已被共同流程依赖的 record/cleanup/sync。</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
   <section id="grounding-context">
     <p class="eyebrow">Evidence before direction</p>
@@ -525,7 +733,7 @@
     </div>
   </section>
 
-  <footer class="composition-signal">Updated 2026-07-11T00:00+08:00 by <code>ce-ideate</code> from the user prompt, the live <code>codex-goal-entry</code> v0.1.0 repository, preserved 2026-07-10 ideation, and cited external primary sources.</footer>
+  <footer class="composition-signal">Updated 2026-07-13T14:45+08:00 by <code>ce-ideate</code> from the user prompt, the live <code>codex-goal-entry</code> v1.0.0 repository, the installed Goal/harness skill surfaces, 16 sampled local run manifests, preserved 2026-07-10 and 2026-07-11 ideation, and cited official external sources.</footer>
 </main>
 </body>
 </html>

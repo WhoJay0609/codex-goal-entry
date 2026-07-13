@@ -42,6 +42,14 @@ class ExpertAuthorizationTests(unittest.TestCase):
         )
         self.assertTrue(result["allowed"])
 
+        compound = self.module.authorize_expert_skill(
+            "debugging",
+            "compound-engineering:ce-debug",
+            self.experts,
+            self.families,
+        )
+        self.assertTrue(compound["allowed"])
+
     def test_unknown_and_wrong_family_skills_are_denied(self) -> None:
         unknown = self.module.authorize_expert_skill(
             "implementation",
@@ -63,6 +71,18 @@ class ExpertAuthorizationTests(unittest.TestCase):
         )
         self.assertFalse(result["allowed"])
         self.assertEqual("global_deny", result["reason"])
+
+        families["families"]["implementation"]["skills"].append(
+            "compound-engineering:ce-work"
+        )
+        orchestrator = self.module.authorize_expert_skill(
+            "implementation",
+            "compound-engineering:ce-work",
+            self.experts,
+            families,
+        )
+        self.assertFalse(orchestrator["allowed"])
+        self.assertEqual("global_deny", orchestrator["reason"])
 
     def test_permission_decision_is_recorded_through_authorized_evidence(self) -> None:
         init = load_script("init_goal_run.py")

@@ -1,45 +1,25 @@
 # Goal Preflight Contract
 
-`goal-preflight` is the lightweight execution gate between `goal-entry` routing
-and goal-bound execution. It answers one question: can this request safely enter
-the execution protocol now?
+`goal-preflight` is the mechanical gate between a model-selected Goal route and
+Goal mutation. It validates the route envelope, binds objective, authorization,
+idempotency identity, and verified cursor, then emits one planning Goal Session.
+It never chooses or changes the execution level.
 
-## JSON Contract
+Normal callers pass `--model-route-json` containing
+`goal-entry.model-route.v1`. The `goal-preflight.preflight.v2` result includes
+readiness, the bound decision and stable session identity, planning lifecycle
+state, idempotency outcome, verified resume Goal id, and repository context.
 
-`scripts/run_goal_preflight.py` emits this narrow JSON object:
+Direct, Compound, and none routes return `entry_route_not_goal_lifecycle` and
+create no Goal Session. Resume requires a `goal-context` verified cursor.
+`--existing-session-json` replays a matching identity and fails closed when its
+fingerprint or verified resume cursor changes. For an inherited short reply,
+the fingerprint uses the prior task's `authoritative_instruction`; the short
+reply remains in the current route for audit without changing task identity.
+`--legacy-resolver` is diagnostics/offline compatibility, not the normal path.
 
-- `schema`: `goal-preflight.preflight.v1`
-- `ready`: boolean, false when any hard blocker exists.
-- `blockers`: hard-stop strings.
-- `warnings`: non-blocking strings.
-- `request_mode`: copied from the `goal-entry` resolver.
-- `goal_action`: copied from the `goal-entry` resolver.
-- `execution_destination`: must be `goal_lifecycle` before Goal execution.
-- `entry_session_id` and `request_fingerprint`: copied from the Goal Entry
-  Session for backend binding.
-- `objective_length`: integer or null.
-- `goal_action_allowed`: boolean.
-- `repo_bound`: boolean.
-- `artifact_run_required`: boolean.
-- `context_required`: boolean.
-- `agents_context`: embedded `goal-context` JSON or null.
-
-## Hard Blockers
-
-Fail closed only for:
-
-- objective length greater than 4,000 characters;
-- missing `repo_root`;
-- missing target path;
-- `goal-context.stop_required=true`;
-- execution request that would need `create_goal` while readiness is not
-  `passed`.
-
-Warnings are informative and must not change `ready`.
-
-## Ownership
-
-`goal-entry` owns routing. `goal-context` owns AGENTS.md and `doc/` workspace
-resolution. `goal-preflight` owns only the gate that composes those results.
-The main orchestrator passes the emitted JSON in the backend authorization
-envelope. The backend validates its session and request bindings before mutation.
+Planning sessions grant `planning_mutation_allowed` but not
+`phase_execution_allowed`. Backend authorization combines capability and phase,
+so planning may proceed without granting expert execution. `goal-context` owns
+AGENTS.md and `doc/` resolution; the main orchestrator carries the complete
+preflight and decision into backend calls.

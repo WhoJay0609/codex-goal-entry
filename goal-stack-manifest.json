@@ -1,6 +1,6 @@
 {
   "schema": "goal-stack-package/v1",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "public_entry": "goal-entry",
   "skills": [
     "goal-preflight",

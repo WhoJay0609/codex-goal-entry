@@ -27,6 +27,21 @@ class InstalledSurfaceTests(unittest.TestCase):
             result = self.checker.check_installed(ROOT, destination)
             self.assertTrue(result["ok"], result)
             self.assertFalse((destination / "harness-agent").exists())
+            self.assertEqual(
+                (ROOT / "SKILL.md").read_text(),
+                (destination / "goal-entry" / "SKILL.md").read_text(),
+            )
+
+    def test_installed_public_entry_drift_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            destination = root / "skills"
+            destination.mkdir()
+            self.installer.install_goal_stack(ROOT, destination, root / "backups")
+            (destination / "goal-entry" / "SKILL.md").write_text("drift\n")
+            result = self.checker.check_installed(ROOT, destination)
+            self.assertFalse(result["ok"])
+            self.assertIn("installed public entry drift: goal-entry", result["errors"])
 
     def test_symlinked_installed_root_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

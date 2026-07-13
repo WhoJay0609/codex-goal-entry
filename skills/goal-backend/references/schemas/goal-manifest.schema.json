@@ -2,13 +2,30 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "goal-manifest.schema.json",
   "type": "object",
-  "required": ["schema", "goal_id", "entry_session_id", "request_fingerprint", "started_at"],
+  "required": ["schema", "goal_id", "entry_session_id", "request_fingerprint", "started_at", "lifecycle_state", "lifecycle_revision", "authorization_scope_digest"],
   "properties": {
     "schema": {"const": "goal-run/v1"},
     "goal_id": {"type": "string", "minLength": 1},
     "entry_session_id": {"type": "string", "pattern": "^entry-[a-z0-9]{12,64}$"},
     "request_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "started_at": {"type": "string"}
+    "started_at": {"type": "string"},
+    "lifecycle_state": {"enum": ["planning", "active", "verifying", "completed", "blocked"]},
+    "lifecycle_revision": {"type": "integer", "minimum": 0},
+    "last_transition": {"type": "object"},
+    "authorization_scope_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "external_actions": {"type": "array", "items": {"enum": ["issue.create", "issue.update", "pr.create"]}},
+    "task_graph": {"type": "object"},
+    "issue_projections": {"type": "object"},
+    "external_operations": {"type": "object"},
+    "recovery": {
+      "type": "object",
+      "properties": {
+        "retry_counts": {"type": "object"},
+        "retry_limits": {"type": "object"},
+        "operations": {"type": "object"},
+        "replan_count": {"type": "integer", "minimum": 0, "maximum": 1}
+      }
+    }
   },
   "additionalProperties": true
 }

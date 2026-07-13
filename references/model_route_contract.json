@@ -1,0 +1,46 @@
+{
+  "schema": "goal-entry.model-route.v1",
+  "contract_version": 1,
+  "execution_levels": ["direct", "compound", "goal", "none"],
+  "intents": ["read_only", "mutating", "no_execution"],
+  "route_sources": ["model", "inherited_context"],
+  "goal_actions": ["create", "resume", null],
+  "external_actions": ["issue.create", "issue.update", "pr.create"],
+  "required_fields": [
+    "schema",
+    "execution_level",
+    "intent",
+    "route_source",
+    "authoritative_instruction",
+    "goal_action",
+    "preferred_skill",
+    "short_reply",
+    "authorization"
+  ],
+  "goal_required_fields": ["objective", "idempotency_key"],
+  "authorization_required_fields": ["scope", "external_actions"],
+  "inherited_context_fields": [
+    "execution_level",
+    "intent",
+    "preferred_skill",
+    "authorization"
+  ],
+  "inherited_task_identity_fields": ["authoritative_instruction"],
+  "inherited_goal_context_fields": [
+    "objective",
+    "goal_action",
+    "idempotency_key",
+    "resume_cursor"
+  ],
+  "policies": {
+    "explicit_invocation_required": true,
+    "model_is_semantic_authority": true,
+    "direct_is_read_only": true,
+    "no_execution_is_hard_veto": true,
+    "short_reply_requires_inherited_context": true,
+    "named_skill_is_preserved": true,
+    "goal_route_requires_objective": true,
+    "goal_route_requires_stable_identity": true,
+    "objective_max_characters": 4000
+  }
+}

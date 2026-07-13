@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the standalone goal-entry package."""
+"""Validate the model-native goal-entry package and legacy read surfaces."""
 
 from __future__ import annotations
 
@@ -10,45 +10,42 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 
 sys.dont_write_bytecode = True
-
 
 REQUIRED_FILES = [
     "VERSION",
     "CHANGELOG.md",
     "SKILL.md",
     "README.md",
+    "goal-stack-manifest.json",
+    "scripts/validate_model_route.py",
     "scripts/resolve_goal_entry.py",
     "scripts/validate_goal_runtime.py",
-    "references/architecture.md",
-    "references/runtime_profiles.json",
+    "references/model_route_contract.json",
     "references/entry_session_contract.json",
-    "agents/openai.yaml",
+    "references/runtime_profiles.json",
+    "skills/goal-preflight/scripts/run_goal_preflight.py",
+    "skills/goal-backend/references/lifecycle-contract.json",
+    "skills/goal-backend/scripts/advance_goal_lifecycle.py",
+    "skills/goal-backend/scripts/sync_issue_projection.py",
+    "skills/goal-backend/scripts/record_recovery_action.py",
+    "tests/fixtures/model_route_cases.json",
     "tests/fixtures/engineering_runtime_trace.json",
     "tests/fixtures/autoresearch_runtime_trace.json",
-    "tests/fixtures/entry_session_cases.json",
-    "tests/fixtures/composite_phase_cases.json",
-    "tests/fixtures/idempotency_cases.json",
-    "tests/fixtures/cursor_cases.json",
-    "tests/fixtures/attestation_cases.json",
 ]
 ENTRY_MARKERS = [
     "$goal-entry",
-    "resolve_goal_entry.py",
+    "goal-entry.model-route.v1",
+    "direct",
+    "compound",
+    "goal",
+    "none",
     "Compound Engineering",
-    "explicit durable Goal",
     "goal-preflight",
-    "goal-objective",
-    "goal-context",
-    "goal-dispatch",
-    "goal-close",
-    "execution_destination",
-    "entry_session",
-    "Semantic Pass",
-    "Authority Pass",
+    "planning -> active -> verifying -> completed",
+    "preferred_skill",
 ]
 
 
@@ -60,14 +57,33 @@ def read_text(path: Path, errors: list[str]) -> str:
         return ""
 
 
-def load_router(path: Path):
-    spec = importlib.util.spec_from_file_location("goal_entry_resolver", path)
+def load_module(path: Path, name: str):
+    if str(path.parent) not in sys.path:
+        sys.path.insert(0, str(path.parent))
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load {path}")
     module = importlib.util.module_from_spec(spec)
-    sys.modules["goal_entry_resolver"] = module
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def run_json(command: list[str], *, cwd: Path) -> tuple[int, dict, str]:
+    proc = subprocess.run(
+        command,
+        cwd=cwd,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=False,
+    )
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        payload = {}
+    return proc.returncode, payload, proc.stdout.strip()
 
 
 def validate(root: Path) -> list[str]:
@@ -77,143 +93,83 @@ def validate(root: Path) -> list[str]:
             errors.append(f"missing required file: {rel_path}")
 
     version = read_text(root / "VERSION", errors).strip()
-    if not version or not all(part.isdigit() for part in version.split(".")) or len(version.split(".")) != 3:
+    if len(version.split(".")) != 3 or not all(
+        part.isdigit() for part in version.split(".")
+    ):
         errors.append(f"VERSION must use MAJOR.MINOR.PATCH: {version!r}")
-    changelog_text = read_text(root / "CHANGELOG.md", errors)
-    if version and f"## [{version}]" not in changelog_text:
+    changelog = read_text(root / "CHANGELOG.md", errors)
+    if version and f"## [{version}]" not in changelog:
         errors.append(f"CHANGELOG.md missing current VERSION entry: {version}")
+    try:
+        package_manifest = json.loads(
+            read_text(root / "goal-stack-manifest.json", errors)
+        )
+        if package_manifest.get("version") != version:
+            errors.append("goal-stack-manifest version does not match VERSION")
+    except json.JSONDecodeError as exc:
+        errors.append(f"goal-stack-manifest is invalid JSON: {exc}")
 
     entry_text = read_text(root / "SKILL.md", errors)
     for marker in ENTRY_MARKERS:
         if marker not in entry_text:
             errors.append(f"SKILL.md missing marker: {marker}")
+    if "scripts/resolve_goal_entry.py" in entry_text:
+        errors.append("SKILL.md must not instruct normal runtime to call the legacy resolver")
+    if len(entry_text.splitlines()) > 100:
+        errors.append("SKILL.md exceeded the 100-line thin-router budget")
 
-    openai_text = read_text(root / "agents" / "openai.yaml", errors)
-    if "$goal-entry" not in openai_text:
-        errors.append("agents/openai.yaml default_prompt must mention $goal-entry")
-
-    contract_text = read_text(root / "references" / "runtime_profiles.json", errors)
     try:
-        runtime_contract = json.loads(contract_text)
-    except json.JSONDecodeError as exc:
-        errors.append(f"runtime profile contract is invalid JSON: {exc}")
-    else:
-        profiles = runtime_contract.get("profiles", {})
-        if set(profiles) != {"complex_engineering", "scientific_autoresearch"}:
-            errors.append(f"unexpected runtime profiles: {sorted(profiles)}")
-        capabilities = runtime_contract.get("capabilities", {})
-        if any(owner in {"subagent", "runtime_subagent"} for owner in capabilities.values()):
-            errors.append("runtime capability grants Goal authority to a subagent")
-
-    router_path = root / "scripts" / "resolve_goal_entry.py"
-    try:
-        router = load_router(router_path)
-        compound = router.resolve(
-            SimpleNamespace(
-                request="PLEASE IMPLEMENT THIS PLAN with tests",
-                request_file=None,
-                active_goal_json=None,
-                readiness_status="passed",
-                objective=None,
-                objective_file=None,
-                conversation_mode="default",
-            )
+        contract = json.loads(
+            read_text(root / "references" / "model_route_contract.json", errors)
         )
-        if compound["request_mode"] != "execute_compound":
-            errors.append(f"ordinary request did not use Compound Engineering: {compound['request_mode']}")
-        if compound.get("execution_destination") != "compound_engineering":
-            errors.append("ordinary request did not report the Compound Engineering destination")
-        if "decision_contract" in compound or "entry_session" in compound:
-            errors.append("ordinary request emitted Goal-only envelopes")
-
-        decision = router.resolve(
-            SimpleNamespace(
-                request="Create a long-running Goal",
-                request_file=None,
-                active_goal_json=None,
-                readiness_status="passed",
-                objective=None,
-                objective_file=None,
-                conversation_mode="default",
-            )
+        if contract.get("execution_levels") != ["direct", "compound", "goal", "none"]:
+            errors.append("model-route execution levels changed unexpectedly")
+        serialized = json.dumps(contract, ensure_ascii=False).lower()
+        if "marker_groups" in serialized or "regex" in serialized:
+            errors.append("model-route contract contains semantic classification rules")
+        validator = load_module(
+            root / "scripts" / "validate_model_route.py", "quick_model_route_validator"
         )
-        if decision["request_mode"] != "execute_goal":
-            errors.append(f"explicit Goal request did not enter Goal lifecycle: {decision['request_mode']}")
-        if decision.get("execution_destination") != "goal_lifecycle":
-            errors.append("explicit Goal request did not report the Goal lifecycle destination")
-        if decision["goal_action"] != "create_goal":
-            errors.append(f"unexpected explicit Goal action: {decision['goal_action']}")
-        contract = decision.get("decision_contract", {})
-        if contract.get("task_profile") != "complex_engineering":
-            errors.append(f"unexpected task_profile: {contract.get('task_profile')}")
-        session = decision.get("entry_session", {})
-        if session.get("semantic_pass", {}).get("status") != "resolved":
-            errors.append(f"unexpected semantic status: {session.get('semantic_pass', {}).get('status')}")
-        if session.get("authority_pass", {}).get("status") != "planning_only":
-            errors.append(f"unexpected authority status: {session.get('authority_pass', {}).get('status')}")
-    except Exception as exc:
-        errors.append(f"resolver import/use failed: {exc}")
+        cases = json.loads(
+            read_text(root / "tests" / "fixtures" / "model_route_cases.json", errors)
+        )
+        for case in cases:
+            result = validator.validate_model_route(case["route"])
+            if result["ok"] is not case["valid"]:
+                errors.append(f"model-route fixture mismatch: {case['name']}")
+            if case.get("error") and case["error"] not in result["errors"]:
+                errors.append(f"model-route fixture missed error: {case['name']}")
+    except (OSError, ValueError, json.JSONDecodeError, KeyError) as exc:
+        errors.append(f"model-route validation failed: {exc}")
 
-    proc = subprocess.run(
+    legacy_code, legacy, legacy_output = run_json(
         [
             sys.executable,
-            str(router_path),
+            str(root / "scripts" / "resolve_goal_entry.py"),
             "--request",
-            "PLEASE IMPLEMENT THIS PLAN",
+            "PLEASE IMPLEMENT THIS PLAN with tests",
             "--readiness-status",
             "passed",
         ],
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=False,
+        cwd=root,
     )
-    if proc.returncode != 0:
-        errors.append(f"resolver CLI failed: {proc.stdout.strip()}")
-    else:
-        try:
-            payload = json.loads(proc.stdout)
-        except json.JSONDecodeError as exc:
-            errors.append(f"resolver CLI did not emit JSON: {exc}")
-        else:
-            if payload.get("request_mode") != "execute_compound":
-                errors.append(f"resolver CLI did not use Compound Engineering: {payload.get('request_mode')}")
-            if payload.get("execution_destination") != "compound_engineering":
-                errors.append("resolver CLI did not report the Compound Engineering destination")
-            if "entry_session" in payload or "decision_contract" in payload:
-                errors.append("resolver CLI emitted Goal-only envelopes for ordinary execution")
+    if legacy_code != 0 or not legacy:
+        errors.append(f"legacy resolver diagnostics failed: {legacy_output}")
+    elif legacy.get("execution_destination") != "compound_engineering":
+        errors.append("legacy resolver compatibility projection changed")
 
-    goal_proc = subprocess.run(
-        [
-            sys.executable,
-            str(router_path),
-            "--request",
-            "Create a long-running Goal",
-            "--readiness-status",
-            "passed",
-        ],
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        check=False,
-    )
-    if goal_proc.returncode != 0:
-        errors.append(f"explicit Goal CLI failed: {goal_proc.stdout.strip()}")
-    else:
-        try:
-            goal_payload = json.loads(goal_proc.stdout)
-        except json.JSONDecodeError as exc:
-            errors.append(f"explicit Goal CLI did not emit JSON: {exc}")
-        else:
-            if goal_payload.get("request_mode") != "execute_goal":
-                errors.append("explicit Goal CLI did not enter Goal lifecycle")
-            if "entry_session" not in goal_payload or "decision_contract" not in goal_payload:
-                errors.append("explicit Goal CLI omitted Goal lifecycle envelopes")
-
-    env = dict(os.environ)
-    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
     test_proc = subprocess.run(
-        [sys.executable, "-m", "unittest", "discover", "-s", str(root / "tests")],
+        [
+            sys.executable,
+            "-m",
+            "unittest",
+            "discover",
+            "-s",
+            str(root / "tests"),
+            "-p",
+            "test_*.py",
+        ],
         cwd=root,
         env=env,
         text=True,
@@ -240,12 +196,21 @@ def validate(root: Path) -> list[str]:
     )
     if runtime_proc.returncode != 0:
         errors.append(f"runtime trace validation failed: {runtime_proc.stdout.strip()}")
+
+    stack_code, stack, stack_output = run_json(
+        [sys.executable, str(root / "scripts" / "check_goal_stack.py"), str(root)],
+        cwd=root,
+    )
+    if stack_code != 0 or not stack.get("ok"):
+        errors.append(f"goal stack validation failed: {stack_output}")
     return errors
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate standalone goal-entry")
-    parser.add_argument("root", nargs="?", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument(
+        "root", nargs="?", type=Path, default=Path(__file__).resolve().parents[1]
+    )
     args = parser.parse_args()
     errors = validate(args.root.resolve())
     if errors:

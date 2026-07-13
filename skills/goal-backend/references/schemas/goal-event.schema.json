@@ -10,7 +10,7 @@
     "goal_id": {"type": "string"},
     "entry_session_id": {"type": "string"},
     "owner_skill": {"type": "string"},
-    "capability": {"const": "evidence.record"},
+    "capability": {"enum": ["run.initialize", "evidence.record", "trace.validate", "runtime.cleanup", "goal.sync", "trace.read_legacy"]},
     "kind": {"type": "string"},
     "status": {
       "enum": ["completed", "missing", "partial", "failed", "blocked", "readiness_only"]
