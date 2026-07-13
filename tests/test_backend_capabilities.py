@@ -159,6 +159,41 @@ class BackendCapabilityTests(unittest.TestCase):
             self.assertFalse(result["valid"])
             self.assertIn("independent_acceptance_missing:change-2", result["errors"])
 
+    def test_trace_detects_manifest_external_operation_without_intent_event(self) -> None:
+        init = load_script("init_goal_run.py")
+        sync = load_script("sync_issue_projection.py")
+        validate = load_script("validate_goal_trace.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp) / "run"
+            init_auth = authorization(external_actions=["issue.create"])
+            init.initialize_run(init_auth, run_dir)
+            manifest = json.loads((run_dir / "manifest.json").read_text())
+            auth = authorization(
+                "goal-dispatch", "evidence.record", external_actions=["issue.create"]
+            )
+            auth["operation_phase"] = "planning"
+            operation = {
+                "operation_id": "issue-m1-v1",
+                "mapping_key": "milestone:m1",
+                "milestone_id": "m1",
+                "issue_kind": "primary",
+                "action": "create",
+                "scope_digest": manifest["authorization_scope_digest"],
+                "desired_state": {"title": "M1"},
+            }
+            self.assertTrue(sync.sync_issue_projection(auth, run_dir, operation)["ok"])
+            self.assertTrue(validate.validate_run(run_dir)["valid"])
+            (run_dir / "events.jsonl").unlink()
+            broken = validate.validate_run(run_dir)
+            self.assertFalse(broken["valid"])
+            self.assertIn(
+                "external_operation_intent_missing:issue-m1-v1", broken["errors"]
+            )
+            repaired = sync.sync_issue_projection(auth, run_dir, operation)
+            self.assertTrue(repaired["ok"])
+            self.assertEqual("reconcile", repaired["provider_action"])
+            self.assertTrue(validate.validate_run(run_dir)["valid"])
+
 
 if __name__ == "__main__":
     unittest.main()

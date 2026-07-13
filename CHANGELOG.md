@@ -2,6 +2,39 @@
 
 本项目从 `v0.1.0` 开始维护语义化版本。版本号遵循 `MAJOR.MINOR.PATCH`：不兼容的公开契约变化提升 MAJOR，向后兼容的新能力提升 MINOR，向后兼容的修复提升 PATCH。
 
+## [2.0.0] - 2026-07-13
+
+### Changed
+
+- `goal-entry` 仍需显式调用，但调用后由模型从完整上下文选择
+  `direct`、`compound`、`goal` 或 `none`，不再把 regex resolver 作为正常
+  语义权威。
+- `direct` 只读，有限范围修改交给 Compound Engineering；有跨轮次恢复、依赖
+  阶段、里程碑、反复迭代或多阶段验收需求时，模型可自动升级为 Goal。
+- Goal 新增 `planning -> active -> verifying -> completed|blocked` 生命周期、稳定
+  任务图、Issue/PR 投影、有限重试与一次 replan、独立验收和 PR 完成门槛。
+- backend 仍只有六个 capability；专家仍受九类注册表、skill family allowlist 和
+  全局 hard deny 约束，前端/UI 专家保留。
+
+### Safety
+
+- Issue/PR 外部写入绑定原始授权，使用 intent、稳定 operation id、desired-state
+  digest、provider reconciliation 和 outcome；未授权 draft 不能伪装成 applied，
+  不确定结果不会盲目重复 create。
+- 短回复复用原任务指纹；生命周期、外部 operation 与恢复 operation 可在 manifest
+  写入后审计 append 中断时幂等补齐事件，不重复状态变更。
+- Goal artifact 不保存 provider 凭据或原始 payload，只接受经过 schema 校验并与
+  operation digest 绑定的 provider identity。
+- 原子 manifest 仍是权威状态，append-only events 只承担审计与恢复，不引入第二
+  planner 或通用 event-sourcing 系统。
+
+### Compatibility
+
+- `scripts/resolve_goal_entry.py` 和 legacy trace 继续用于诊断、离线回归和旧输入
+  读取；正常 public route 与 model-route preflight 不调用它们。
+- 临时安装与事务回滚仍覆盖同仓库中的 public `goal-entry` 与十个内部 `goal-*`
+  skills；不会修改 live 本机 skill root。
+
 ## [1.0.0] - 2026-07-12
 
 ### Changed
@@ -63,3 +96,4 @@
 [0.1.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v0.1.0
 [0.2.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v0.2.0
 [1.0.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v1.0.0
+[2.0.0]: https://github.com/WhoJay0609/codex-goal-entry/releases/tag/v2.0.0

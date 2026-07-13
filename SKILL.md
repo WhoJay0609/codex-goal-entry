@@ -1,68 +1,85 @@
 ---
 name: goal-entry
-description: Minimal router for explicit durable Goal creation or resume. Ordinary engineering execution belongs to Compound Engineering.
+description: Minimal explicitly invoked router for direct read-only work, Compound Engineering, or a durable Goal lifecycle.
 ---
 
 # Goal Entry
 
 Invocation: `[$goal-entry](SKILL.md)`
 
-Use this skill only when the user explicitly asks to create, resume, or run an
-**explicit durable Goal**: a long-running, multi-day, autonomous, research, or
-otherwise lifecycle-managed outcome. It is not the default entry for coding.
+Use this skill only when the user explicitly invokes `goal-entry`. It is a thin
+entry decision, not a wrapper around every task and not another project manager.
 
-For ordinary engineering work—implementation, debugging, review, testing,
-documentation, or a bounded plan—use the appropriate Compound Engineering
-workflow instead.
+## Choose one execution level
 
-## Route
+Use the full conversation and your own judgment to produce one compact
+`goal-entry.model-route.v1` record. Read
+`references/model_route_contract.json` first and populate its required fields;
+Goal routes also carry a stable `idempotency_key`:
 
-1. Run `scripts/resolve_goal_entry.py` before creating or resuming a Goal.
-   Its `request_mode` and `execution_destination` are the route decision.
-2. If `execution_destination=compound_engineering`, do not initialize Goal
-   state or read Goal-only inputs. Continue with Compound Engineering.
-3. If `execution_destination=goal_lifecycle`, run `goal-preflight` before
-   creating or binding a Goal. Stop when readiness is not passed.
-4. For a new Goal, use `goal-objective`; for a resume, use `goal-context` and
-   its verified cursor.
-5. Only after that gate may the Goal family use `goal-plan`, `goal-dispatch`,
-   `goal-backend`, `goal-trace`, and `goal-close` as needed.
+- `direct`: read-only answering, inspection, explanation, or diagnosis. It may
+  not change artifacts.
+- `compound`: one bounded artifact-changing engineering task. Prefer a
+  user-named professional skill and let Compound Engineering own the work unit.
+- `goal`: work needs durable lifecycle state, cross-turn resume, dependent
+  stages, milestones, repeated iteration, monitoring, or multi-stage acceptance.
+- `none`: the user said not to execute or the request is not ready for mutation.
 
-## What selects Goal mode
+Goal selection does not require the literal word “Goal” after this skill was
+invoked. Upgrade project-shaped work when one bounded Compound run is not a
+reliable completion boundary. Inside a Goal, Compound Engineering still executes
+bounded engineering units; Goal owns only lifecycle, dependencies, evidence,
+recovery, acceptance, and closeout.
 
-Goal mode requires one of these explicit signals:
+Keep a named professional skill as `preferred_skill`. A short reply such as
+`1`, `继续`, or `可以` inherits the active task, execution level, preferred
+skill, and authorization; copy the prior route fields into `inherited_context`
+so the validator can reject task or scope drift. Without that active context it
+is not independently routable.
 
-- Create/start a Goal **and** state a durable outcome, such as long-running,
-  multi-day, continuous, autonomous, research loop, or their Chinese forms.
-- Explicitly resume or recover an existing Goal.
+Explicit no-execution wording is a hard veto. When meaning is uncertain, begin
+with read-only inspection and ask only if the remaining choice changes scope,
+authorization, irreversible risk, or the evidence needed for completion.
 
-中文等价表达：`创建一个长期 Goal` / `启动一个科研循环 Goal`，或
-`继续这个 Goal` / `恢复这个 Goal`。普通“修复解析器并测试”仍属于 Compound
-Engineering。
+## Run the selected level
 
-Execution verbs, research terms, an active Goal record, quoted text, or
-delegation flags alone do not select Goal mode. A request that says not to
-execute remains non-mutating.
+- `direct`: work natively and create no Goal artifacts.
+- `compound`: invoke the preferred bounded Compound/professional skill and
+  create no Goal artifacts.
+- `goal`: validate the model route, then run `goal-preflight`. When it passes,
+  create or resume one planning Goal and inform the user; do not ask for a
+  second confirmation merely to start the authorized lifecycle.
+- `none`: do not mutate.
 
-## Goal-only safeguards
+A Goal progresses `planning -> active -> verifying -> completed`, or becomes
+`blocked` when its bounded recovery/escalation contract is exhausted. Planning
+creates the task graph, milestones, acceptance criteria, and stable Issue
+identities. The main orchestrator owns Goal tools and provider calls. Experts may
+use only their registered professional skill families and may never call Goal
+tools, `goal-*`, backend capabilities, or recursive project orchestrators.
 
-- Do not call Goal tools from subagents.
-- Do not create or bind a Goal before `goal-preflight` passes.
-- Do not create a Goal with an objective longer than 4,000 characters.
-- Do not use a caller-supplied record as resume authority; require the verified
+Issue and PR writes are automatic only when the original request authorized
+those external actions; otherwise keep drafts. Resume reconciles stable
+operation identities before retrying. A Goal completes only after mechanical
+checks, required independent acceptance, runtime cleanup, Goal synchronization,
+and an authorized reconciled PR identity. Merge and post-PR follow-up are
+separate unless the original request includes them.
+
+## Mechanical boundary
+
+- `references/model_route_contract.json` defines the route envelope; it does
+  not classify natural language.
+- `goal-preflight` validates and binds the model decision but never reclassifies
+  it.
+- The legacy diagnostic router remains an offline compatibility surface, not
+  normal semantic authority.
+- Goal objectives remain at most 4,000 characters; resume requires a verified
   `goal-context` cursor.
-- Do not schedule a phase unless the Entry Session's Authority Pass permits it.
-
-## Result contract
-
-Routine Compound results contain only the small routing envelope and omit
-`decision_contract` and `entry_session`. Explicit Goal results include the
-Goal lifecycle envelope, including Semantic Pass and Authority Pass evidence.
 
 ## Validation
 
 ```bash
 python3 scripts/quick_validate.py .
-python3 scripts/resolve_goal_entry.py --request 'Please implement this plan with tests'
-python3 scripts/resolve_goal_entry.py --request 'Please create a long-running Goal to implement this plan with tests' --readiness-status passed
+python3 scripts/check_goal_stack.py .
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```

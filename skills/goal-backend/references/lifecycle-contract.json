@@ -1,0 +1,22 @@
+{
+  "schema": "goal-lifecycle-contract/v1",
+  "states": ["planning", "active", "verifying", "completed", "blocked"],
+  "initial_state": "planning",
+  "terminal_states": ["completed", "blocked"],
+  "transitions": {
+    "planning": ["active", "blocked"],
+    "active": ["verifying", "blocked"],
+    "verifying": ["completed", "blocked"],
+    "completed": [],
+    "blocked": []
+  },
+  "transition_capabilities": {
+    "planning->active": "evidence.record",
+    "planning->blocked": "goal.sync",
+    "active->verifying": "trace.validate",
+    "active->blocked": "goal.sync",
+    "verifying->completed": "goal.sync",
+    "verifying->blocked": "goal.sync"
+  },
+  "recovery": {"max_corrective_retries": 2, "automatic_replans": 1}
+}

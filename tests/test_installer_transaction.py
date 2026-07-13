@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -32,6 +34,35 @@ class InstallerTransactionTests(unittest.TestCase):
             manifest = json.loads((ROOT / "goal-stack-manifest.json").read_text())
             for name in manifest["skills"]:
                 self.assertTrue((destination / name / "SKILL.md").is_file())
+            self.assertTrue((destination / "goal-entry" / "SKILL.md").is_file())
+            cases = json.loads(
+                (ROOT / "tests" / "fixtures" / "model_route_cases.json").read_text()
+            )
+            route = next(
+                item["route"]
+                for item in cases
+                if item["name"] == "model_upgrades_project_to_goal"
+            )
+            preflight = subprocess.run(
+                [
+                    sys.executable,
+                    str(
+                        destination
+                        / "goal-preflight"
+                        / "scripts"
+                        / "run_goal_preflight.py"
+                    ),
+                    "--model-route-json",
+                    json.dumps(route),
+                    "--readiness-status",
+                    "passed",
+                ],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
+            self.assertEqual(0, preflight.returncode, preflight.stdout)
             backup = Path(result["backup_dir"])
             self.assertTrue((backup / "harness-agent" / "OLD").is_file())
 

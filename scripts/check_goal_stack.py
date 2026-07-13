@@ -16,6 +16,17 @@ FORBIDDEN_REQUIRED_REFERENCES = (
     "superpowers_subagents",
     "Superpowers-first",
 )
+PUBLIC_ENTRY_MEMBERS = (
+    "SKILL.md",
+    "VERSION",
+    "CHANGELOG.md",
+    "README.md",
+    "agents",
+    "references",
+    "scripts/resolve_goal_entry.py",
+    "scripts/validate_goal_runtime.py",
+    "scripts/validate_model_route.py",
+)
 
 
 def load_manifest(source: Path) -> Dict[str, Any]:
@@ -58,6 +69,36 @@ def tree_digest(root: Path) -> str:
     return digest.hexdigest()
 
 
+def public_entry_digest(root: Path) -> str:
+    digest = hashlib.sha256()
+    for member in PUBLIC_ENTRY_MEMBERS:
+        path = root / member
+        if path.is_dir():
+            paths = list(iter_files(path))
+        elif path.is_file():
+            paths = [path]
+        else:
+            digest.update(f"missing:{member}".encode("utf-8"))
+            continue
+        for current in paths:
+            digest.update(current.relative_to(root).as_posix().encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(current.read_bytes())
+            digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def package_digest(root: Path) -> str:
+    digest = hashlib.sha256()
+    digest.update(b"public-entry\0")
+    digest.update(public_entry_digest(root).encode("ascii"))
+    digest.update(b"\0goal-family\0")
+    digest.update(tree_digest(root / "skills").encode("ascii"))
+    digest.update(b"\0manifest\0")
+    digest.update((root / MANIFEST_NAME).read_bytes())
+    return digest.hexdigest()
+
+
 def _has_symlink_component(path: Path) -> bool:
     absolute = Path(os.path.abspath(str(path.expanduser())))
     current = Path(absolute.anchor)
@@ -86,6 +127,12 @@ def check_source(source: Path) -> Dict[str, Any]:
         errors.append("public goal-entry SKILL.md is missing")
     elif _skill_name(public_skill) != "goal-entry":
         errors.append("public SKILL.md frontmatter name must be goal-entry")
+    else:
+        public_text = public_skill.read_text(encoding="utf-8")
+        if "goal-entry.model-route.v1" not in public_text:
+            errors.append("public goal-entry must declare the model-route contract")
+        if "scripts/resolve_goal_entry.py" in public_text:
+            errors.append("public goal-entry must not call the legacy resolver")
     public_agent = source / "agents" / "openai.yaml"
     if not public_agent.is_file():
         errors.append("public goal-entry agents/openai.yaml is missing")
@@ -126,6 +173,16 @@ def check_source(source: Path) -> Dict[str, Any]:
                     errors.append(
                         f"{path.relative_to(source)}: invalid JSON: {exc.msg}"
                     )
+    required_contracts = [
+        source / "references" / "model_route_contract.json",
+        source / "skills" / "goal-backend" / "references" / "lifecycle-contract.json",
+        source / "skills" / "goal-backend" / "scripts" / "advance_goal_lifecycle.py",
+        source / "skills" / "goal-backend" / "scripts" / "sync_issue_projection.py",
+        source / "skills" / "goal-backend" / "scripts" / "record_recovery_action.py",
+    ]
+    for path in required_contracts:
+        if not path.is_file():
+            errors.append(f"required model-native contract missing: {path.relative_to(source)}")
     try:
         experts = json.loads(
             (
@@ -147,8 +204,25 @@ def check_source(source: Path) -> Dict[str, Any]:
         )
         if len(experts.get("experts", [])) != 9:
             errors.append("expert registry must contain exactly nine experts")
+        if "frontend_and_ui_engineering" not in {
+            item.get("id") for item in experts.get("experts", [])
+        }:
+            errors.append("expert registry must contain frontend_and_ui_engineering")
         deny = families.get("global_deny") or {}
         denied = set(deny.get("skills", [])) | set(deny.get("goal_tools", []))
+        required_denied = {
+            "compound-engineering:lfg",
+            "compound-engineering:ce-work",
+            "compound-engineering:ce-plan",
+            "compound-engineering:ce-commit-push-pr",
+            "compound-engineering:ce-babysit-pr",
+            "create_goal",
+            "get_goal",
+            "update_goal",
+        }
+        missing_denied = required_denied - denied
+        if missing_denied:
+            errors.append(f"global deny missing reserved capabilities: {sorted(missing_denied)}")
         prefixes = tuple(deny.get("prefixes", []))
         for family_id, family in (families.get("families") or {}).items():
             for skill in family.get("skills", []):
@@ -162,7 +236,7 @@ def check_source(source: Path) -> Dict[str, Any]:
         "ok": not errors,
         "errors": errors,
         "skills": manifest["skills"],
-        "source_digest": tree_digest(source / "skills"),
+        "source_digest": package_digest(source),
     }
 
 
@@ -185,6 +259,12 @@ def check_installed(source: Path, destination: Path) -> Dict[str, Any]:
         manifest = load_manifest(source)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         return {"ok": False, "errors": errors + [f"manifest:{exc}"]}
+    public_name = manifest.get("public_entry", "goal-entry")
+    installed_public = destination / public_name
+    if not installed_public.is_dir() or installed_public.is_symlink():
+        errors.append(f"installed public entry missing or symlinked: {public_name}")
+    elif public_entry_digest(source) != public_entry_digest(installed_public):
+        errors.append(f"installed public entry drift: {public_name}")
     for name in manifest["skills"]:
         expected = source / "skills" / name
         actual = destination / name

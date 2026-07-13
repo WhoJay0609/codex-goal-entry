@@ -17,7 +17,10 @@ with `scripts/authorize_backend_call.py`. Supported capabilities are exactly:
 
 Reject direct user, Compound Engineering, unrelated-skill, and subagent calls.
 Do not plan, choose providers, select experts, form teams, dispatch, or set retry
-policy. Expert skill calls must pass `scripts/authorize_expert_skill.py` and the
+policy. The kernel mechanically enforces lifecycle transitions, stable graph and
+external-operation identities, retry/replan budgets, provider-result validation,
+cleanup, and completion gates through those same six capabilities. Expert skill
+calls must pass `scripts/authorize_expert_skill.py` and the
 global deny; the script requires Goal-authorized `evidence.record` input and
 records both allowed and denied decisions. This boundary is protocol
 enforcement, not an OS sandbox.

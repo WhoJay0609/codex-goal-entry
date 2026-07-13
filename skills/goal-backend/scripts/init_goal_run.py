@@ -35,6 +35,16 @@ def initialize_run(request: Mapping[str, Any], run_dir: Path) -> dict:
             "errors": [] if same else ["run_binding_conflict"],
         }
     run_dir.mkdir(parents=True, exist_ok=False)
+    session = (request.get("entry_decision") or {}).get("entry_session") or {}
+    authority = session.get("authority_pass") or {}
+    model_route = (request.get("entry_decision") or {}).get("model_route") or {}
+    authorization_scope = model_route.get("authorization") or {
+        "scope": "legacy goal scope",
+        "external_actions": list(authority.get("external_actions") or []),
+    }
+    scope_digest = session.get("authorization_scope_digest") or stable_digest(
+        dict(authorization_scope)
+    )
     manifest = {
         "schema": "goal-run/v1",
         "goal_id": decision["goal_id"],
@@ -44,6 +54,20 @@ def initialize_run(request: Mapping[str, Any], run_dir: Path) -> dict:
         "goal_preflight_digest": stable_digest(dict(request["goal_preflight"])),
         "initialized_by": decision["owner_skill"],
         "started_at": utc_now(),
+        "lifecycle_state": "planning",
+        "lifecycle_revision": 0,
+        "authorization_scope_digest": scope_digest,
+        "external_actions": sorted(authorization_scope.get("external_actions") or []),
+        "task_graph": {"version": 1, "milestones": [], "work_units": []},
+        "issue_projections": {},
+        "external_operations": {},
+        "recovery": {
+            "retry_counts": {},
+            "retry_limits": {},
+            "operations": {},
+            "replan_count": 0,
+        },
+        "pr_projection": None,
         "capabilities": sorted(OWNER_CAPABILITIES),
         "evidence_statuses": [
             "completed",

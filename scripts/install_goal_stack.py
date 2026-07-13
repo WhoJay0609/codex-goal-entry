@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from check_goal_stack import (
+    PUBLIC_ENTRY_MEMBERS,
     SKILL_NAME_RE,
     check_installed,
     check_source,
@@ -163,12 +164,28 @@ def _verify_backup(backup: Path) -> Dict[str, Any]:
 
 def _managed_names(source: Path) -> List[str]:
     manifest = load_manifest(source)
-    return list(manifest["skills"]) + ["harness-agent"]
+    return [manifest.get("public_entry", "goal-entry"), *manifest["skills"], "harness-agent"]
 
 
 def _copy_directory(source: Path, destination: Path) -> None:
     _reject_symlinks(source)
     shutil.copytree(source, destination, symlinks=False)
+
+
+def _copy_public_entry(source: Path, destination: Path) -> None:
+    destination.mkdir(mode=0o700)
+    for member in PUBLIC_ENTRY_MEMBERS:
+        current = source / member
+        target = destination / member
+        _reject_symlinks(current)
+        if current.is_dir():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(current, target, symlinks=False)
+        elif current.is_file():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(current, target)
+        else:
+            raise InstallError(f"public entry member missing: {member}")
 
 
 def _acquire_lock(destination: Path) -> tuple[int, Path]:
@@ -260,8 +277,12 @@ def install_goal_stack(
         stage.mkdir(mode=0o700)
         old.mkdir(mode=0o700)
         backup.mkdir(mode=0o700)
+        public_name = load_manifest(source).get("public_entry", "goal-entry")
         for name in names[:-1]:
-            _copy_directory(source / "skills" / name, stage / name)
+            if name == public_name:
+                _copy_public_entry(source, stage / name)
+            else:
+                _copy_directory(source / "skills" / name, stage / name)
         staged_check = check_installed(source, stage)
         if not staged_check["ok"]:
             raise InstallError(

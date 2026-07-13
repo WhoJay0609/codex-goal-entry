@@ -1,105 +1,99 @@
-# Codex Goal Entry and Goal Skills
+# Codex Goal Entry
 
-`goal-entry` 是一个小型分流器；本仓库同时维护它所调用的内部 `goal-*` 家族
-skills。它不是日常工程执行框架。
+`goal-entry` 是一个显式调用、模型原生的通用任务入口。本仓库同时维护它所需的
+十个内部 `goal-*` skills。它保持轻量：模型负责理解任务，机械工具链只保护授权、
+状态、证据、恢复和完成条件。
 
-- 日常工程任务默认进入 **Compound Engineering**：实现、修复、测试、review、文档、有限范围的计划。
-- 只有用户明确创建/恢复一个长期、持续、自治或科研循环的 **Goal** 时，才进入 Goal lifecycle。
+当前版本：`v2.0.0`。
 
-当前维护版本：`v1.0.0`。
+## 三层执行
 
-## Goal family
+显式调用 `goal-entry` 后，模型从完整对话选择一个执行层级：
 
-`skills/` 保存 Goal lifecycle 的内部协议，当前包括：
-
-`goal-preflight`、`goal-context`、`goal-objective`、`goal-plan`、
-`goal-dispatch`、`goal-team`、`goal-backend`、`goal-trace`、
-`goal-metadata` 和 `goal-close`。
-
-`goal-backend` 只提供六类机械能力：run 初始化、证据记录、trace 校验、运行时
-清理、Goal 同步和旧 trace 的只读读取。规划、provider 选择、专家选择和 dispatch
-仍由各自的 Goal skill 与主编排器负责。专家注册表固定为九类，并包含前端与 UI
-工程专家；skill family 授权默认拒绝，硬拒绝规则优先。
-
-## 为什么这样拆分
-
-原先把普通执行请求也包装成 Goal，会让每次工程任务都携带 readiness、runtime profile、cursor、provider attestation 和生命周期输出。它既重，也和 Compound Engineering 的工程流程重复。
-
-现在 resolver 先做一个小决策：
-
-| 请求 | `execution_destination` | 后续 |
+| 层级 | 使用条件 | 状态开销 |
 | --- | --- | --- |
-| “请修复解析器并补测试” | `compound_engineering` | 交给 Compound Engineering |
-| “请创建一个长期 Goal，持续运行科研实验循环” | `goal_lifecycle` | 进入 Goal preflight 与生命周期 |
-| “继续这个 Goal” | `goal_lifecycle` | 用 verified cursor 恢复 |
-| “只分析，不要执行” | `null` | 不执行 |
+| `direct` | 回答、解释、检查、诊断等只读工作 | 不创建 Goal artifact |
+| `compound` | 一个边界清晰的修改、修复、测试或文档任务 | 由 Compound Engineering 或用户点名 skill 执行 |
+| `goal` | 需要跨轮次恢复、依赖阶段、里程碑、重复迭代、监控或多阶段验收 | 创建一个 durable Goal |
+| `none` | 用户明确不要执行，或尚不足以安全修改 | 不修改 |
 
-普通路径不会解析 active Goal、cursor、runtime state、capability 或 attestation
-输入，也不会输出 `decision_contract` 或 `entry_session`。
+`goal` 并不替代 Compound Engineering。Goal 管生命周期、依赖、验收和收尾；
+Compound Engineering 仍执行其中一个个有限范围工程单元。短回复如 `1`、`继续`
+和 `可以` 继承当前任务、层级和用户点名 skill，不能脱离上下文重新猜测。
 
-## 使用
+## Goal 完整闭环
+
+新 Goal 依次经过：
+
+```text
+planning -> active -> verifying -> completed
+     \          \           \
+      +----------+-----------+-> blocked
+```
+
+planning 固化任务图、milestone、依赖、验收标准和稳定 Issue identity。每个
+milestone 一个主 Issue；只有可独立交付、独立验收或真正阻塞的单元才产生子 Issue。
+失败按 runtime profile 有限重试，耗尽后只自动 replan 一次且不能改已验收结果或
+原始授权边界。
+
+verifying 要求所有单元集成、每个 milestone 有机械证据、高风险单元和最终 PR
+claim 有独立 verifier、runtime handle 已回收、Goal tool 已按序同步，并且在原请求
+授权 `pr.create` 时取得已对账 PR identity。Goal 在 open PR 处完成；merge 和持续
+review 默认不属于这个 Goal。
+
+## 轻量机械边界
+
+- `references/model_route_contract.json` 只验证模型给出的 route shape、只读/修改
+  边界、no-execution、短回复继承、目标长度、外部授权和 resume cursor；不含语义
+  regex 或中央 skill map。
+- `goal-preflight` 绑定 model route、目标、authorization scope、幂等 identity 和
+  verified cursor，但不会重新分类。
+- `goal-backend` 仍只有六个 capability：初始化、证据记录、trace 校验、runtime
+  cleanup、Goal sync、legacy trace 读取。
+- 原子 `manifest.json` 是状态真源；`events.jsonl` 是审计/恢复 journal。
+- Issue/PR 写入先记录 intent；provider 结果不确定时先 reconcile，绝不盲目重复
+  create。未授权 draft 不能提交 provider outcome；artifact 不保存凭据或 raw
+  provider payload。
+- Goal tools、provider calls 和 backend mutation 仅由主编排器执行。九类专家只能
+  使用注册 skill family；`goal-*`、Goal tools、LFG、ce-work、规划/发布类递归
+  orchestrator 全局拒绝。前端/UI expert 已内置。
+
+## Model route 与 preflight
+
+模型输出 `goal-entry.model-route.v1` 后，Goal 路径可这样进行机械验证：
 
 ```bash
-# 日常工程：默认 Compound Engineering
-python3 scripts/resolve_goal_entry.py \
-  --request '请修复解析器并添加回归测试'
-
-# 显式长期 Goal：进入 Goal lifecycle
-python3 scripts/resolve_goal_entry.py \
-  --request '请创建一个长期 Goal，持续运行科研实验循环并整理证据' \
+python3 scripts/validate_model_route.py --route-json /path/to/model-route.json
+python3 skills/goal-preflight/scripts/run_goal_preflight.py \
+  --model-route-json /path/to/model-route.json \
   --readiness-status passed
 ```
 
-普通工程结果示例：
-
-```json
-{
-  "request_mode": "execute_compound",
-  "execution_destination": "compound_engineering",
-  "goal_action": "none"
-}
-```
-
-显式 Goal 结果才会附带 `decision_contract`、`entry_session`、Semantic Pass 和
-Authority Pass。缺少 verified evidence 时，Goal 路径会保守停在规划或交接状态，
-不会声称外部 Goal mutation 已发生。
-
-## Goal 选择规则
-
-触发 Goal 的最小条件是：
-
-1. 明确创建/启动 Goal，且明确它是长期、持续、自治、multi-day 或科研循环；或
-2. 明确恢复一个已有 Goal。
-
-仅有“实现”“运行实验”“active goal”或“派子代理”都不够。`不要执行` 始终优先。
-
-进入 Goal 后，由本仓库内的 `goal-*` family 分别负责
-`goal-preflight`、`goal-objective`、`goal-context`、`goal-plan`、
-`goal-dispatch`、`goal-backend`、`goal-trace`、`goal-metadata` 和
-`goal-close`；`goal-entry` 自身仍只负责路由合同与只读验证，不直接创建、更新或
-关闭 Goal。
-
-## 内容与验证
-
-- `SKILL.md`：最小公开路由合同。
-- `scripts/resolve_goal_entry.py`：机器可读分流器。
-- `references/entry_session_contract.json`：仅 Goal 路径使用的 intent 与证据合同。
-- `references/runtime_profiles.json`：Goal runtime profiles 的可移植声明。
-- `scripts/validate_goal_runtime.py`：只读 trace 验证器。
-- `goal-stack-manifest.json`：声明 public `goal-entry` 与内部 Goal family 的边界。
-- `scripts/check_goal_stack.py`：检查 public router 与内部 family 的一致性。
+正常路径不运行 legacy resolver。需要检查旧路由行为时，可显式运行诊断 CLI：
 
 ```bash
-python3 -m unittest discover -s tests -v
-python3 scripts/validate_goal_runtime.py \
-  tests/fixtures/engineering_runtime_trace.json \
-  tests/fixtures/autoresearch_runtime_trace.json
+python3 scripts/resolve_goal_entry.py \
+  --request 'PLEASE IMPLEMENT THIS PLAN with tests' \
+  --readiness-status passed
+```
+
+## 目录
+
+- `SKILL.md`：public thin router。
+- `references/model_route_contract.json`：模型 route envelope。
+- `skills/goal-preflight/`：route/session/context readiness 绑定。
+- `skills/goal-backend/`：六能力 kernel、生命周期、Issue/PR、恢复和验收门槛。
+- `skills/goal-plan|dispatch|team|trace|close/`：各自单一职责协议。
+- `scripts/resolve_goal_entry.py`：legacy diagnostics/offline compatibility。
+- `scripts/install_goal_stack.py`：事务式临时/本地安装与回滚。
+
+## 验证
+
+```bash
 python3 scripts/quick_validate.py .
+python3 scripts/resolve_goal_entry.py \
+  --request 'PLEASE IMPLEMENT THIS PLAN with tests' \
+  --readiness-status passed
 python3 scripts/check_goal_stack.py .
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
-
-## 发布
-
-`VERSION` 是发布版本的单一来源。更新公开合同后同时更新
-`VERSION`、`CHANGELOG.md` 和相应测试，再运行 `scripts/quick_validate.py .`。

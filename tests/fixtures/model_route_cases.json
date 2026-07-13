@@ -1,0 +1,136 @@
+[
+  {
+    "name": "direct_read_only",
+    "route": {
+      "schema": "goal-entry.model-route.v1",
+      "execution_level": "direct",
+      "intent": "read_only",
+      "route_source": "model",
+      "authoritative_instruction": "Explain the current backend capability map.",
+      "goal_action": null,
+      "preferred_skill": null,
+      "short_reply": false,
+      "authorization": {"scope": "repository read-only", "external_actions": []}
+    },
+    "valid": true
+  },
+  {
+    "name": "direct_write_rejected",
+    "route": {
+      "schema": "goal-entry.model-route.v1",
+      "execution_level": "direct",
+      "intent": "mutating",
+      "route_source": "model",
+      "authoritative_instruction": "Change the parser and add tests.",
+      "goal_action": null,
+      "preferred_skill": null,
+      "short_reply": false,
+      "authorization": {"scope": "parser change", "external_actions": []}
+    },
+    "valid": false,
+    "error": "direct_write_forbidden"
+  },
+  {
+    "name": "compound_named_skill",
+    "route": {
+      "schema": "goal-entry.model-route.v1",
+      "execution_level": "compound",
+      "intent": "mutating",
+      "route_source": "model",
+      "authoritative_instruction": "Use ce-debug to fix the parser and add tests.",
+      "goal_action": null,
+      "preferred_skill": "compound-engineering:ce-debug",
+      "short_reply": false,
+      "authorization": {"scope": "parser change", "external_actions": []}
+    },
+    "valid": true
+  },
+  {
+    "name": "model_upgrades_project_to_goal",
+    "route": {
+      "schema": "goal-entry.model-route.v1",
+      "execution_level": "goal",
+      "intent": "mutating",
+      "route_source": "model",
+      "authoritative_instruction": "Refactor the cross-module project, publish issues, verify it, and submit a PR.",
+      "objective": "Deliver the cross-module refactor through task graph, milestones, acceptance, and PR.",
+      "goal_action": "create",
+      "preferred_skill": "compound-engineering:ce-work",
+      "short_reply": false,
+      "idempotency_key": "project-refactor-v1",
+      "authorization": {
+        "scope": "cross-module refactor",
+        "external_actions": ["issue.create", "issue.update", "pr.create"]
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "short_reply_inherits_route_and_skill",
+    "route": {
+      "schema": "goal-entry.model-route.v1",
+      "execution_level": "goal",
+      "intent": "mutating",
+      "route_source": "inherited_context",
+      "authoritative_instruction": "1",
+      "objective": "Deliver the cross-module refactor through task graph, milestones, acceptance, and PR.",
+      "goal_action": "create",
+      "preferred_skill": "compound-engineering:ce-work",
+      "short_reply": true,
+      "idempotency_key": "project-refactor-v1",
+      "inherited_context": {
+        "authoritative_instruction": "Refactor the cross-module project, publish issues, verify it, and submit a PR.",
+        "execution_level": "goal",
+        "intent": "mutating",
+        "preferred_skill": "compound-engineering:ce-work",
+        "objective": "Deliver the cross-module refactor through task graph, milestones, acceptance, and PR.",
+        "goal_action": "create",
+        "idempotency_key": "project-refactor-v1",
+        "resume_cursor": null,
+        "authorization": {
+          "scope": "cross-module refactor",
+          "external_actions": ["issue.create", "issue.update", "pr.create"]
+        }
+      },
+      "authorization": {
+        "scope": "cross-module refactor",
+        "external_actions": ["issue.create", "issue.update", "pr.create"]
+      }
+    },
+    "valid": true
+  },
+  {
+    "name": "standalone_short_reply_rejected",
+    "route": {
+      "schema": "goal-entry.model-route.v1",
+      "execution_level": "goal",
+      "intent": "mutating",
+      "route_source": "model",
+      "authoritative_instruction": "1",
+      "objective": "Continue.",
+      "goal_action": "create",
+      "idempotency_key": "standalone-short-reply-v1",
+      "preferred_skill": null,
+      "short_reply": true,
+      "authorization": {"scope": "unknown", "external_actions": []}
+    },
+    "valid": false,
+    "error": "short_reply_requires_inherited_context"
+  },
+  {
+    "name": "no_execution_is_hard_veto",
+    "route": {
+      "schema": "goal-entry.model-route.v1",
+      "execution_level": "compound",
+      "intent": "no_execution",
+      "route_source": "model",
+      "authoritative_instruction": "Only plan; do not execute.",
+      "goal_action": null,
+      "preferred_skill": "compound-engineering:ce-plan",
+      "short_reply": false,
+      "authorization": {"scope": "planning only", "external_actions": []}
+    },
+    "valid": false,
+    "error": "no_execution_conflict"
+  }
+]

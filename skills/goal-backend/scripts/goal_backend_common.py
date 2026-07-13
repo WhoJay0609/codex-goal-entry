@@ -5,6 +5,7 @@ import json
 import os
 import re
 import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Mapping, Tuple
@@ -30,6 +31,7 @@ OWNER_CAPABILITIES = {
 
 SESSION_ID_RE = re.compile(r"^entry-[a-z0-9]{12,64}$")
 FINGERPRINT_RE = re.compile(r"^[0-9a-f]{64}$")
+EXTERNAL_ACTIONS = {"issue.create", "issue.update", "pr.create"}
 
 
 def utc_now() -> str:
@@ -114,6 +116,168 @@ def stable_digest(value: Mapping[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def load_manifest(run_dir: Path) -> Dict[str, Any]:
+    value = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("manifest must be a JSON object")
+    return value
+
+
+def append_goal_event(
+    run_dir: Path,
+    decision: Mapping[str, Any],
+    *,
+    kind: str,
+    status: str,
+    data: Mapping[str, Any],
+) -> Dict[str, Any]:
+    row = {
+        "event_version": 1,
+        "event_id": f"evt-{uuid.uuid4().hex}",
+        "timestamp": utc_now(),
+        "goal_id": decision["goal_id"],
+        "entry_session_id": decision["entry_session_id"],
+        "owner_skill": decision["owner_skill"],
+        "capability": decision["capability"],
+        "kind": kind,
+        "status": status,
+        "data": dict(data),
+    }
+    append_jsonl(run_dir / "events.jsonl", row)
+    return row
+
+
+def ensure_goal_event(
+    run_dir: Path,
+    decision: Mapping[str, Any],
+    *,
+    kind: str,
+    status: str,
+    data: Mapping[str, Any],
+    identity_fields: Tuple[str, ...],
+) -> Dict[str, Any]:
+    rows, errors = read_jsonl(run_dir / "events.jsonl")
+    if errors:
+        return {"ok": False, "errors": errors}
+    expected = dict(data)
+    for row in rows:
+        row_data = row.get("data") or {}
+        if row.get("kind") == kind and all(
+            row_data.get(field) == expected.get(field) for field in identity_fields
+        ):
+            if row.get("status") != status:
+                return {"ok": False, "errors": ["goal_event_status_conflict"]}
+            return {"ok": True, "created": False, "event": row}
+    event = append_goal_event(
+        run_dir, decision, kind=kind, status=status, data=expected
+    )
+    return {"ok": True, "created": True, "event": event}
+
+
+SENSITIVE_KEYS = {
+    "api_key",
+    "api_token",
+    "access_token",
+    "authorization",
+    "credential",
+    "credentials",
+    "password",
+    "secret",
+    "token",
+}
+
+
+def contains_sensitive_key(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            if str(key).lower() in SENSITIVE_KEYS or contains_sensitive_key(item):
+                return True
+    elif isinstance(value, list):
+        return any(contains_sensitive_key(item) for item in value)
+    return False
+
+
+def validate_provider_result(
+    value: Mapping[str, Any], *, operation_id: str, desired_state_digest: str
+) -> List[str]:
+    allowed = {
+        "operation_id",
+        "desired_state_digest",
+        "provider_id",
+        "url",
+        "state",
+    }
+    errors: List[str] = []
+    if set(value) - allowed or contains_sensitive_key(value):
+        errors.append("provider_result_fields_invalid")
+    if value.get("operation_id") != operation_id:
+        errors.append("provider_result_operation_mismatch")
+    if value.get("desired_state_digest") != desired_state_digest:
+        errors.append("provider_result_digest_mismatch")
+    if not isinstance(value.get("provider_id"), str) or not str(
+        value.get("provider_id", "")
+    ).strip():
+        errors.append("provider_result_id_missing")
+    url = value.get("url")
+    if url is not None and (not isinstance(url, str) or not url.startswith("https://")):
+        errors.append("provider_result_url_invalid")
+    state = value.get("state")
+    if state is not None and (
+        not isinstance(state, str) or not state.strip()
+    ):
+        errors.append("provider_result_state_invalid")
+    return errors
+
+
+def resolve_external_operation(
+    existing: Any,
+    provider_result: Any,
+    *,
+    operation_id: str,
+    desired_state_digest: str,
+) -> Dict[str, Any]:
+    if not isinstance(existing, Mapping):
+        if provider_result is not None:
+            return {
+                "outcome": "error",
+                "errors": ["provider_result_without_recorded_intent"],
+            }
+        return {"outcome": "new"}
+    if existing.get("desired_state_digest") != desired_state_digest:
+        return {
+            "outcome": "error",
+            "errors": ["external_operation_digest_conflict"],
+        }
+    if existing.get("status") == "applied":
+        return {"outcome": "replayed", "operation": dict(existing)}
+    if provider_result is not None and not isinstance(provider_result, Mapping):
+        return {"outcome": "error", "errors": ["provider_result_invalid"]}
+    if isinstance(provider_result, Mapping) and existing.get("status") != "pending":
+        return {
+            "outcome": "error",
+            "errors": ["provider_result_for_unauthorized_draft"],
+        }
+    if provider_result is None:
+        return {"outcome": "reconcile", "operation": dict(existing)}
+    errors = validate_provider_result(
+        provider_result,
+        operation_id=operation_id,
+        desired_state_digest=desired_state_digest,
+    )
+    if errors:
+        return {"outcome": "error", "errors": errors}
+    applied = dict(existing)
+    applied.update(
+        {
+            "status": "applied",
+            "provider_id": provider_result["provider_id"],
+            "url": provider_result.get("url"),
+            "provider_state": provider_result.get("state"),
+        }
+    )
+    return {"outcome": "applied", "operation": applied}
+
+
 def process_identity(pid: int) -> Tuple[str, str] | None:
     root = Path("/proc") / str(pid)
     try:
@@ -140,6 +304,7 @@ def authorize(request: Mapping[str, Any]) -> Dict[str, Any]:
     actor = request.get("actor")
     owner = request.get("owner_skill")
     capability = request.get("capability")
+    operation_phase = request.get("operation_phase", "active")
     goal_id = request.get("goal_id")
     decision = request.get("entry_decision")
     preflight = request.get("goal_preflight")
@@ -150,6 +315,8 @@ def authorize(request: Mapping[str, Any]) -> Dict[str, Any]:
         reasons.append("capability_unknown")
     elif owner not in OWNER_CAPABILITIES[capability]:
         reasons.append("owner_not_authorized_for_capability")
+    if operation_phase not in {"planning", "active", "verifying", "closeout", "legacy_read"}:
+        reasons.append("operation_phase_invalid")
     if not isinstance(decision, Mapping):
         reasons.append("entry_decision_missing")
         decision = {}
@@ -171,9 +338,67 @@ def authorize(request: Mapping[str, Any]) -> Dict[str, Any]:
     if not isinstance(authority, Mapping):
         reasons.append("authority_pass_missing")
         authority = {}
+    model_route = decision.get("model_route")
+    if model_route is not None:
+        if not isinstance(model_route, Mapping):
+            reasons.append("model_route_invalid")
+        else:
+            authorization_scope = model_route.get("authorization")
+            if not isinstance(authorization_scope, Mapping):
+                reasons.append("model_route_authorization_missing")
+            else:
+                scope = authorization_scope.get("scope")
+                actions = authorization_scope.get("external_actions")
+                actions_valid = (
+                    isinstance(actions, list)
+                    and all(
+                        isinstance(action, str) and action in EXTERNAL_ACTIONS
+                        for action in actions
+                    )
+                    and len(actions) == len(set(actions))
+                )
+                if not isinstance(scope, str) or not scope.strip():
+                    reasons.append("model_route_authorization_scope_invalid")
+                if not actions_valid:
+                    reasons.append("model_route_external_actions_invalid")
+                if isinstance(scope, str) and scope.strip() and actions_valid:
+                    normalized_scope = {
+                        "scope": scope.strip(),
+                        "external_actions": sorted(actions),
+                    }
+                    if session.get("authorization_scope_digest") != stable_digest(
+                        normalized_scope
+                    ):
+                        reasons.append("authorization_scope_digest_mismatch")
+                    authority_actions = authority.get("external_actions")
+                    if (
+                        not isinstance(authority_actions, list)
+                        or any(
+                            not isinstance(action, str)
+                            for action in authority_actions
+                        )
+                        or sorted(authority_actions) != normalized_scope["external_actions"]
+                    ):
+                        reasons.append("authority_external_actions_mismatch")
+            if model_route.get("goal_action") == "resume":
+                route_cursor = model_route.get("resume_cursor")
+                authority_cursor = authority.get("cursor")
+                if (
+                    not isinstance(route_cursor, Mapping)
+                    or not isinstance(authority_cursor, Mapping)
+                    or dict(authority_cursor) != dict(route_cursor)
+                ):
+                    reasons.append("authority_resume_cursor_mismatch")
     if authority.get("status") == "blocked":
         reasons.append("authority_pass_blocked")
-    if authority.get("phase_execution_allowed") is not True:
+    planning_operation = capability == "run.initialize" or (
+        capability == "evidence.record" and operation_phase == "planning"
+    )
+    legacy_read = capability == "trace.read_legacy"
+    if planning_operation:
+        if authority.get("planning_mutation_allowed") is not True:
+            reasons.append("planning_mutation_not_allowed")
+    elif not legacy_read and authority.get("phase_execution_allowed") is not True:
         reasons.append("phase_execution_not_allowed")
     fingerprint = decision.get("request_fingerprint") or session.get(
         "request_fingerprint"
@@ -206,6 +431,7 @@ def authorize(request: Mapping[str, Any]) -> Dict[str, Any]:
         "actor": actor,
         "owner_skill": owner,
         "capability": capability,
+        "operation_phase": operation_phase,
         "goal_id": goal_id,
         "entry_session_id": session_id,
         "request_fingerprint": fingerprint,

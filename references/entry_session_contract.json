@@ -1,5 +1,9 @@
 {
   "contract_version": 2,
+  "normal_route_contract": "model_route_contract.json",
+  "normal_route_authority": "host_model",
+  "legacy_resolver_role": "diagnostics_and_offline_compatibility",
+  "lifecycle_states": ["planning", "active", "verifying", "completed", "blocked"],
   "passes": ["semantic_pass", "authority_pass"],
   "semantic_states": ["resolved", "clarification_required", "unresolved_non_mutating"],
   "authority_states": [

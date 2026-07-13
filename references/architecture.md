@@ -1,43 +1,54 @@
 # Goal Entry Architecture
 
-`goal-entry` is a narrow boundary between ordinary Compound Engineering work
-and an explicit durable Goal lifecycle.
+`goal-entry` is an explicitly invoked semantic entry. The model chooses one
+execution level from the full conversation; deterministic code validates the
+decision envelope and Goal mechanics without reproducing that judgment.
 
 ## Ownership
 
 | Surface | Owner |
 | --- | --- |
-| Normal implementation, debugging, tests, review, bounded plans | Compound Engineering |
-| Detecting an explicit durable Goal or explicit Goal resume | `goal-entry` |
-| Readiness before Goal creation or binding | `goal-preflight` |
-| Goal objective and verified resume cursor | `goal-objective`, `goal-context` |
-| Goal roadmap, dispatch, backend artifacts, trace, closeout | Internal `goal-*` family skills |
+| Semantic level and preferred skill | Main model orchestrator |
+| Read-only answer or inspection | Native/direct execution |
+| Bounded artifact mutation | Compound Engineering or named professional skill |
+| Goal readiness and trusted session binding | `goal-preflight` |
+| Objective, context, graph, dispatch, experts | Relevant `goal-*` protocol |
+| Lifecycle state, evidence, recovery, projections, cleanup, sync | Six-capability `goal-backend` kernel |
+| Issue/PR provider calls and Goal tools | Main orchestrator only |
 
-The resolver first selects `execution_destination`:
+The model route has four values: `direct`, `compound`, `goal`, and `none`.
+`references/model_route_contract.json` validates shape, direct-write exclusion,
+no-execution precedence, short-reply inheritance, objective length, external
+authorization, and trusted resume cursor. It contains no phrase classifier or
+skill-selection registry.
 
-- `compound_engineering`: return the minimal routing envelope. Do not parse or
-  emit Goal lifecycle state.
-- `goal_lifecycle`: emit the Goal-only `decision_contract` and `entry_session`.
-- `null`: no execution route.
+## Goal lifecycle
 
-This order is deliberate: an active Goal record never turns an ordinary task
-into a Goal task. The user must explicitly request a durable Goal outcome or a
-Goal resume.
+New Goal sessions start in `planning`, then move monotonically through `active`
+and `verifying` to `completed`; `blocked` is terminal. An atomic manifest is the
+authoritative state. Append-only events are the audit and recovery journal, not
+a second planner or a general event-sourcing platform.
 
-## Goal lifecycle contract
+Planning records a stable graph, milestones, acceptance criteria, work units,
+and Issue mapping keys. External operations use a write-ahead intent, stable
+operation identity, desired-state digest, provider reconciliation, and a bound
+outcome. An ambiguous provider call is reconciled before retry; it is never
+blindly recreated.
 
-Only the Goal route evaluates runtime profiles, durable state, capability
-declarations, idempotency, cursor selection, and provider attestations.
-`entry_session_contract.json` defines the two ordered passes:
+The backend retains exactly six public capabilities. Planning initialization,
+evidence/projection recording, trace validation, runtime cleanup, Goal sync, and
+legacy trace reading stay behind their current owner allowlist. Capability and
+lifecycle phase are both checked, so planning authority cannot execute a work
+unit.
 
-1. Semantic Pass identifies the authoritative instruction, ambiguity, and any
-   phase graph.
-2. Authority Pass can only narrow that result using verified cursor and
-   provider evidence.
+## Completion
 
-The resolver validates the shape of external evidence; it does not claim the
-external provider performed a real mutation. Goal tools remain main-agent only;
-subagents cannot create, update, or close Goals.
+Every milestone needs mechanical evidence. High-risk work and the final PR claim
+need an independent eligible verifier. Completion additionally requires accepted
+work, reconciled runtime handles, ordered Goal synchronization, original PR
+authorization, and a schema-validated reconciled PR identity. Provider
+credentials and raw provider payloads never enter durable Goal artifacts.
 
-`runtime_profiles.json` remains policy data for explicit Goal workflows. Its
-trace validator is read-only and never schedules work or mutates state.
+The legacy resolver and runtime traces remain readable for diagnostics and
+regression tests, but normal public routing and model-route preflight do not call
+that resolver.
