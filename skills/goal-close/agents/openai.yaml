@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Close"
+  short_description: "Close Goals with evidence and cleanup"
+  default_prompt: "Use $goal-close to reconcile evidence, cleanup, sync, and final status."
+policy:
+  allow_implicit_invocation: false

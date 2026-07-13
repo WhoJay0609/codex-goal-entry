@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Team"
+  short_description: "Select the minimum controlled expert team"
+  default_prompt: "Use $goal-team to select the smallest expert set for this Goal unit."
+policy:
+  allow_implicit_invocation: false

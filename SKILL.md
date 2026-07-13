@@ -25,8 +25,8 @@ workflow instead.
    creating or binding a Goal. Stop when readiness is not passed.
 4. For a new Goal, use `goal-objective`; for a resume, use `goal-context` and
    its verified cursor.
-5. Only after that gate may the external Goal lifecycle use `goal-plan`,
-   `goal-dispatch`, `goal-backend`, `goal-trace`, and `goal-close` as needed.
+5. Only after that gate may the Goal family use `goal-plan`, `goal-dispatch`,
+   `goal-backend`, `goal-trace`, and `goal-close` as needed.
 
 ## What selects Goal mode
 

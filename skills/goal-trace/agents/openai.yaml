@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Trace"
+  short_description: "Validate Goal evidence and legacy traces"
+  default_prompt: "Use $goal-trace to validate the run evidence before closeout."
+policy:
+  allow_implicit_invocation: false

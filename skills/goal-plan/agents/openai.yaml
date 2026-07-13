@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Plan"
+  short_description: "Plan integration-ready durable Goal work"
+  default_prompt: "Use $goal-plan to define integration-ready work units for this Goal."
+policy:
+  allow_implicit_invocation: false

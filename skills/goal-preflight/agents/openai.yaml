@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Preflight"
+  short_description: "Gate explicit Goal work before mutation"
+  default_prompt: "Use $goal-preflight to verify readiness for this explicit Goal operation."
+policy:
+  allow_implicit_invocation: false

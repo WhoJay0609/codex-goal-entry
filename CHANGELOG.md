@@ -24,6 +24,8 @@
 - 需要长期 Goal 时，显式说明 “创建一个长期 Goal” 或 “继续这个 Goal”。
 - 原先依赖 `goal_entry_tier`、`superpowers_dispatch_level`、
   `subagent_execution_mode` 的调用方应改读 `execution_destination`。
+- public `goal-entry` 与十个内部 `goal-*` family skill 现在在同一仓库维护；旧的
+  `harness-agent` 执行入口不再属于发布面。
 
 ## [0.2.0] - 2026-07-11
 

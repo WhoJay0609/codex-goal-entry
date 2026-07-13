@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Objective"
+  short_description: "Build a compact durable Goal objective"
+  default_prompt: "Use $goal-objective to prepare the bounded objective for this explicit Goal."
+policy:
+  allow_implicit_invocation: false

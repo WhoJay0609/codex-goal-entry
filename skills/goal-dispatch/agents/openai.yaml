@@ -1,0 +1,6 @@
+interface:
+  display_name: "Goal Dispatch"
+  short_description: "Dispatch Goal units through explicit providers"
+  default_prompt: "Use $goal-dispatch to route the prepared Goal work units."
+policy:
+  allow_implicit_invocation: false
